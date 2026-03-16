@@ -1,0 +1,36 @@
+# OpenTelemetry Collector Builder (ocb) manifest.
+# Generates a custom Collector distribution that includes the RLAAS rate limiter processor.
+#
+# Build with:
+#   builder --config builder-config.yaml
+#
+# See: https://opentelemetry.io/docs/collector/extend/ocb/
+
+dist:
+  name: otelcol-ratelimiter
+  description: OpenTelemetry Collector with RLAAS Rate Limiter Processor
+  output_path: ./otelcol-ratelimiter
+  version: 1.0.0
+
+exporters:
+  - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.147.0
+  - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.147.0
+  - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v0.147.0
+
+processors:
+  - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.147.0
+  - gomod: github.com/suresh-p26/OTEL-RATELIMITER v1.0.0
+    name: ratelimiterprocessor
+
+replaces:
+  - github.com/suresh-p26/OTEL-RATELIMITER => ../
+
+receivers:
+  - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.147.0
+
+providers:
+  - gomod: go.opentelemetry.io/collector/confmap/provider/envprovider v1.48.0
+  - gomod: go.opentelemetry.io/collector/confmap/provider/fileprovider v1.48.0
+  - gomod: go.opentelemetry.io/collector/confmap/provider/httpprovider v1.48.0
+  - gomod: go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.48.0
+  - gomod: go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.48.0

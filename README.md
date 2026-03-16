@@ -108,6 +108,40 @@ Receivers ──> [ratelimiter processor] ──> Exporters
 
 ## Installation
 
+### Option 1: Build with OpenTelemetry Collector Builder (ocb) — Recommended
+
+The recommended way to use this processor is via the [OpenTelemetry Collector Builder](https://opentelemetry.io/docs/collector/extend/ocb/). A `builder-config.yaml` is included in the repo.
+
+```bash
+# Install the builder
+go install go.opentelemetry.io/collector/cmd/builder@v0.147.0
+
+# Build the custom collector distribution
+builder --config builder-config.yaml
+
+# Run it
+./otelcol-ratelimiter/otelcol-ratelimiter --config collector-config.yaml
+```
+
+Or use the Makefile shortcut (Linux/macOS — downloads ocb via curl):
+
+```bash
+make ocb-build
+```
+
+> See the [Development](#development) section below for detailed local build instructions, including Windows-specific steps.
+
+### Option 2: Docker
+
+```bash
+make docker-build
+make docker-run
+```
+
+See the `Dockerfile` for the multi-stage build that uses ocb internally.
+
+### Option 3: Go module (embed in your own collector)
+
 ```bash
 go get github.com/suresh-p26/OTEL-RATELIMITER
 ```
@@ -297,25 +331,233 @@ Each OTel record is converted to a RLAAS `RequestContext`:
 ### Prerequisites
 
 - Go 1.25+
+- [OpenTelemetry Collector Builder (ocb)](https://opentelemetry.io/docs/collector/extend/ocb/) v0.147.0+ (for building the custom collector)
 
-### Build
+### Build the processor module
 
 ```bash
 go build ./...
 ```
 
-### Test
+### Run unit tests
 
 ```bash
-go test -v ./...
+go test -v -race ./...
 ```
 
-### Coverage
+### Code coverage
 
 ```bash
-go test -coverprofile=coverage.out ./...
+# Generate coverage report (target: ≥90%)
+go test -race -coverprofile=coverage.out ./...
+
+# View in browser
 go tool cover -html=coverage.out
+
+# Print summary to terminal
+go tool cover -func=coverage.out
 ```
+
+---
+
+### Build the Custom Collector Locally (OCB)
+
+The project includes a `builder-config.yaml` that produces a standalone collector binary with the rate limiter processor baked in.
+
+#### Option A — Using `go install` (recommended for local dev)
+
+```bash
+# Install the builder tool
+go install go.opentelemetry.io/collector/cmd/builder@v0.147.0
+
+# Build the custom collector
+# On Windows, if your system Go is older than 1.25, set the toolchain explicitly:
+#   set GOTOOLCHAIN=go1.25.8    (cmd)
+#   $env:GOTOOLCHAIN="go1.25.8" (PowerShell)
+builder --config builder-config.yaml
+```
+
+#### Option B — Using `curl` + Makefile
+
+```bash
+# Downloads the ocb binary and builds in one step
+make ocb-build
+```
+
+#### Option C — Docker (Linux amd64)
+
+```bash
+make docker-build
+make docker-run
+```
+
+After a successful build, the binary is at `./otelcol-ratelimiter/otelcol-ratelimiter` (or `.exe` on Windows).
+
+> **Note:** The entire `otelcol-ratelimiter/` directory is auto-generated and git-ignored. Never commit it — it is fully reproducible from `builder-config.yaml`.
+
+---
+
+### Run the Collector Locally
+
+```bash
+# Using the local dev config (debug exporter, policies from ./example/policies.json)
+./otelcol-ratelimiter/otelcol-ratelimiter --config local-collector-config.yaml
+
+# Or on Windows PowerShell:
+& .\otelcol-ratelimiter\otelcol-ratelimiter.exe --config local-collector-config.yaml
+```
+
+The collector starts listening on:
+- **gRPC** — `0.0.0.0:4317`
+- **HTTP** — `0.0.0.0:4318`
+
+---
+
+### Verify the Collector Is Running (Reading Logs)
+
+On successful startup you should see log lines like this:
+
+```
+info  service/service.go  Starting otelcol-ratelimiter...
+        Version: 1.0.0, NumCPU: 12
+
+info  extensions/extensions.go  Starting extensions...
+
+info  OTEL-RATELIMITER/processor_logs.go
+        RLAAS rate limiter logs processor started
+        policy_file: ./example/policies.json, fail_open: true
+
+info  otlpreceiver/otlp.go  Starting GRPC server  endpoint: [::]:4317
+info  otlpreceiver/otlp.go  Starting HTTP server  endpoint: [::]:4318
+
+info  OTEL-RATELIMITER/processor_traces.go
+        RLAAS rate limiter traces processor started
+
+info  OTEL-RATELIMITER/processor_metrics.go
+        RLAAS rate limiter metrics processor started
+
+info  service/service.go  Everything is ready. Begin running and processing data.
+```
+
+**Key things to look for:**
+- `RLAAS rate limiter logs/traces/metrics processor started` — confirms all three signal processors initialized and loaded the policy file
+- `Starting GRPC server` / `Starting HTTP server` — confirms the OTLP receiver is accepting data
+- `Everything is ready. Begin running and processing data.` — collector is fully running
+
+#### Send test data with `telemetrygen`
+
+```bash
+# Install telemetrygen
+go install github.com/open-telemetry/opentelemetry-collector-contrib/cmd/telemetrygen@latest
+
+# Send 50 log records
+telemetrygen logs --otlp-insecure --duration 5s --rate 10
+
+# Send 50 traces
+telemetrygen traces --otlp-insecure --duration 5s --rate 10
+
+# Send 50 metrics
+telemetrygen metrics --otlp-insecure --duration 5s --rate 10
+```
+
+With the `debug` exporter set to `verbosity: detailed`, you will see each received record printed in the collector's terminal output. Records that exceed the rate limit will be silently dropped (you'll see fewer records in the debug output than were sent).
+
+#### Check if rate limiting is working
+
+1. **Send a burst above the limit** — e.g., send 200 logs/sec when the policy allows 5000/min (~83/sec). Observe the debug exporter output: early batches pass through fully, later batches have records removed.
+2. **Shadow mode** — If a policy has `enforcement_mode: shadow`, all records pass through but the engine still evaluates limits. Check for the `shadow: true` decision in logs.
+3. **Fail-closed test** — Point `policy_file` at a non-existent file with `fail_open: false`. The processor will drop all records.
+
+---
+
+### Integration Tests
+
+Integration tests validate end-to-end behavior: building a real processor with real policies, sending OTel `pdata` through it, and asserting records are correctly allowed or dropped.
+
+```bash
+# Run all integration tests
+go test -v -race -run TestIntegration ./...
+
+# Run a specific integration test
+go test -v -race -run TestIntegration_LogsProcessor_DropsExcessLogs ./...
+go test -v -race -run TestIntegration_FullPipeline_AllSignals ./...
+```
+
+**What the integration tests cover (18 tests):**
+
+| Test | What it validates |
+|---|---|
+| `DropsExcessLogs` | Token bucket drops records beyond the limit |
+| `MultiServiceIsolation` | Separate counters per service name |
+| `ShadowModePassesAll` | Shadow policies evaluate but never drop |
+| `SequentialBatches` | Counter state persists across batches |
+| `DropsExcessSpans` | Traces pipeline drops excess spans |
+| `DropsExcessMetrics` | Metrics pipeline drops excess data points |
+| `FullPipeline_AllSignals` | All three signals in one test |
+| `ServiceScopedPolicy` | Policy scoped to a specific service |
+| `FailClosed` | Invalid policy file + `fail_open: false` drops everything |
+| `Capabilities` | Processor reports `MutatesData: true` |
+| `MixedSeverities` | Different policies per severity level |
+| `NoServiceName` (logs/traces/metrics) | Records without `service.name` still rate-limit |
+| `EmptyAttributes` | Records with no attributes at all |
+| `Engine_DefaultsNotOverridden` | Engine config defaults are preserved |
+| `Engine_ZeroQuantityDefault` | Zero quantity defaults to 1 |
+| `Engine_NegativeQuantityDefault` | Negative quantity defaults to 1 |
+
+---
+
+### Benchmark Tests
+
+Benchmark tests measure per-operation latency and memory allocation to catch performance regressions.
+
+```bash
+# Run all benchmarks
+go test -bench=. -benchmem -count=3 -run=^$ ./...
+
+# Run specific benchmark groups
+go test -bench=BenchmarkLogsProcessor -benchmem ./...
+go test -bench=BenchmarkEngine -benchmem ./...
+go test -bench=BenchmarkBuildLogsContext -benchmem ./...
+
+# Run batch-size scaling benchmarks
+go test -bench=BenchmarkLogsProcessor_BatchSize -benchmem ./...
+```
+
+**What the benchmarks cover (14 benchmarks):**
+
+| Benchmark | What it measures |
+|---|---|
+| `LogsProcessor_AllAllowed` | Throughput when no records are dropped |
+| `LogsProcessor_HalfDropped` | Throughput when ~50% of records are rate-limited |
+| `LogsProcessor_ShadowMode` | Overhead of shadow mode (evaluate but don't drop) |
+| `TracesProcessor_AllAllowed/HalfDropped` | Traces pipeline throughput |
+| `MetricsProcessor_AllAllowed/HalfDropped` | Metrics pipeline throughput |
+| `Engine_Evaluate` | Raw RLAAS engine evaluation latency (~2.8µs/op) |
+| `BuildLogsContext` | Log → RequestContext conversion (~350ns/op) |
+| `BuildTracesContext` | Span → RequestContext conversion (~370ns/op) |
+| `BuildMetricsContext` | Metric → RequestContext conversion (~460ns/op) |
+| `BatchSize10/100/1000` | Scaling behavior across batch sizes |
+
+**Example output:**
+
+```
+BenchmarkEngine_Evaluate-12          425920    2812 ns/op    1592 B/op    25 allocs/op
+BenchmarkBuildLogsContext-12        3447814     349 ns/op     544 B/op     5 allocs/op
+BenchmarkBuildTracesContext-12      3274620     366 ns/op     544 B/op     5 allocs/op
+BenchmarkBuildMetricsContext-12     2614750     458 ns/op     624 B/op     7 allocs/op
+```
+
+---
+
+### CI Pipeline
+
+The GitHub Actions CI workflow (`.github/workflows/ci.yml`) runs on every push and PR:
+
+| Job | What it does |
+|---|---|
+| **build-and-test** | `go build`, `go test -race`, enforces **≥90% code coverage** |
+| **integration-test** | Runs all `TestIntegration_*` tests |
+| **benchmark** | Runs all benchmarks with `-benchmem -count=3` |
 
 ---
 
