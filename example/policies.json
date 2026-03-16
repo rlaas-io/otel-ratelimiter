@@ -1,0 +1,121 @@
+[
+  {
+    "policy_id": "limit-logs-per-service",
+    "name": "Limit log records per service",
+    "description": "Token bucket: 5000 logs/min per service with burst of 1000",
+    "enabled": true,
+    "priority": 10,
+    "scope": {
+      "signal_type": "log"
+    },
+    "algorithm": {
+      "type": "token_bucket",
+      "limit": 5000,
+      "window": "1m",
+      "burst": 1000
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "limit-debug-logs",
+    "name": "Aggressively limit DEBUG logs",
+    "description": "DEBUG logs are usually not needed in production — cap at 100/min",
+    "enabled": true,
+    "priority": 20,
+    "scope": {
+      "signal_type": "log",
+      "severity": "DEBUG"
+    },
+    "algorithm": {
+      "type": "fixed_window",
+      "limit": 100,
+      "window": "1m"
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "limit-traces-per-service",
+    "name": "Limit spans per service",
+    "description": "Sliding window: 3000 spans/min per service for accurate counting",
+    "enabled": true,
+    "priority": 10,
+    "scope": {
+      "signal_type": "span"
+    },
+    "algorithm": {
+      "type": "sliding_window_log",
+      "limit": 3000,
+      "window": "1m"
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "shadow-payment-traces",
+    "name": "Shadow mode for payment service traces",
+    "description": "Evaluate limits but don't enforce — dry-run to test before rolling out",
+    "enabled": true,
+    "priority": 15,
+    "scope": {
+      "signal_type": "span",
+      "service": "payment-svc"
+    },
+    "algorithm": {
+      "type": "token_bucket",
+      "limit": 2000,
+      "window": "1m",
+      "burst": 500
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "shadow",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "limit-metrics-per-service",
+    "name": "Limit metrics per service",
+    "description": "Fixed window: 10000 metrics/min to prevent high-cardinality explosions",
+    "enabled": true,
+    "priority": 10,
+    "scope": {
+      "signal_type": "metric"
+    },
+    "algorithm": {
+      "type": "fixed_window",
+      "limit": 10000,
+      "window": "1m"
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "limit-chatty-service",
+    "name": "Tight limit for known noisy service",
+    "description": "This batch processor generates excessive telemetry — cap it",
+    "enabled": true,
+    "priority": 25,
+    "scope": {
+      "service": "chatty-batch-processor"
+    },
+    "algorithm": {
+      "type": "leaky_bucket",
+      "limit": 500,
+      "window": "1m",
+      "burst": 100
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  }
+]

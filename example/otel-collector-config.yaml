@@ -1,0 +1,67 @@
+# Example: OpenTelemetry Collector configuration with the RLAAS-powered
+# ratelimiter processor.
+#
+# This demonstrates a production setup where the processor delegates all
+# rate limiting decisions to the RLAAS engine via a policy JSON file.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Rate limiter processor — RLAAS is the decision engine.
+  ratelimiter:
+    # Path to the RLAAS policy JSON file (required).
+    # Policies define algorithms, limits, actions, scopes, and enforcement modes.
+    policy_file: /etc/otel/policies.json
+
+    # Allow records through when RLAAS encounters an error (default: true).
+    fail_open: true
+
+    # How long to cache policies in memory before reloading (default: 30s).
+    cache_ttl: 30s
+
+    # Namespace prefix for counter keys (default: "otel").
+    key_prefix: otel
+
+    # Default context fields applied to every request context.
+    org_id: my-org
+    environment: production
+
+  # Standard batch processor — group records before export.
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+
+exporters:
+  otlphttp:
+    endpoint: https://observability-backend.example.com:4318
+    headers:
+      Authorization: "Bearer ${OTEL_EXPORTER_TOKEN}"
+
+  otlp:
+    endpoint: tracing-backend.example.com:4317
+
+  prometheusremotewrite:
+    endpoint: https://prometheus.example.com/api/v1/write
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [ratelimiter, batch]
+      exporters: [otlphttp]
+
+    traces:
+      receivers: [otlp]
+      processors: [ratelimiter, batch]
+      exporters: [otlp]
+
+    metrics:
+      receivers: [otlp]
+      processors: [ratelimiter, batch]
+      exporters: [prometheusremotewrite]
