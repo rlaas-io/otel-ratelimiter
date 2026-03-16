@@ -1,0 +1,44 @@
+# Test Collector configuration for integration testing.
+# Uses the ratelimiter processor with tight limits so tests can verify dropping behavior.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  ratelimiter:
+    policy_file: ./testdata/integration_policies.json
+    fail_open: true
+    cache_ttl: 10s
+    key_prefix: integration-test
+    org_id: test-org
+    tenant_id: test-tenant
+    application: integration-test-app
+    environment: test
+
+  batch:
+    timeout: 1s
+    send_batch_size: 100
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [ratelimiter, batch]
+      exporters: [debug]
+    traces:
+      receivers: [otlp]
+      processors: [ratelimiter, batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [ratelimiter, batch]
+      exporters: [debug]

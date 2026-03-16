@@ -19,7 +19,8 @@ func nopSettings() processor.Settings {
 
 // createTempPolicyFile writes RLAAS policies to a temp JSON file and returns
 // the path. The file is automatically cleaned up when the test finishes.
-func createTempPolicyFile(t *testing.T, policies []model.Policy) string {
+// Accepts testing.TB so it works with both *testing.T and *testing.B.
+func createTempPolicyFile(t testing.TB, policies []model.Policy) string {
 	t.Helper()
 	data, err := json.Marshal(policies)
 	if err != nil {

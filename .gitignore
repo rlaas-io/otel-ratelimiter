@@ -1,3 +1,6 @@
+# OCB build output (auto-generated, do not commit)
+otelcol-ratelimiter/
+
 # Build output
 bin/
 dist/
@@ -11,6 +14,8 @@ dist/
 *.test
 
 # Coverage
+coverage
+coverage/
 coverage.out
 coverage.html
 *.coverprofile
@@ -29,3 +34,6 @@ go.work.sum
 # OS
 .DS_Store
 Thumbs.db
+
+# Local dev configs (optional, remove if you want to track)
+local-collector-config.yaml

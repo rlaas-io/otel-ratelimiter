@@ -1,0 +1,101 @@
+[
+  {
+    "policy_id": "integration-limit-logs",
+    "name": "Integration test: limit logs to 10/min",
+    "description": "Strict limit for integration testing — 10 logs per minute with burst of 5",
+    "enabled": true,
+    "priority": 10,
+    "scope": {
+      "signal_type": "log"
+    },
+    "algorithm": {
+      "type": "token_bucket",
+      "limit": 10,
+      "window": "1m",
+      "burst": 5
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "integration-limit-debug-logs",
+    "name": "Integration test: aggressively limit DEBUG logs",
+    "description": "Only 3 DEBUG logs per minute allowed",
+    "enabled": true,
+    "priority": 20,
+    "scope": {
+      "signal_type": "log",
+      "severity": "DEBUG"
+    },
+    "algorithm": {
+      "type": "fixed_window",
+      "limit": 3,
+      "window": "1m"
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "integration-limit-traces",
+    "name": "Integration test: limit spans to 10/min",
+    "description": "Strict limit for integration testing — 10 spans per minute",
+    "enabled": true,
+    "priority": 10,
+    "scope": {
+      "signal_type": "span"
+    },
+    "algorithm": {
+      "type": "sliding_window_log",
+      "limit": 10,
+      "window": "1m"
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "integration-limit-metrics",
+    "name": "Integration test: limit metrics to 10/min",
+    "description": "Strict limit for integration testing — 10 metrics per minute",
+    "enabled": true,
+    "priority": 10,
+    "scope": {
+      "signal_type": "metric"
+    },
+    "algorithm": {
+      "type": "fixed_window",
+      "limit": 10,
+      "window": "1m"
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "enforce",
+    "rollout_percent": 100
+  },
+  {
+    "policy_id": "integration-shadow-logs",
+    "name": "Integration test: shadow mode logs",
+    "description": "Shadow mode — evaluate but never drop",
+    "enabled": true,
+    "priority": 5,
+    "scope": {
+      "signal_type": "log",
+      "service": "shadow-svc"
+    },
+    "algorithm": {
+      "type": "token_bucket",
+      "limit": 1,
+      "window": "1m",
+      "burst": 1
+    },
+    "action": "drop",
+    "failure_mode": "fail_open",
+    "enforcement_mode": "shadow",
+    "rollout_percent": 100
+  }
+]

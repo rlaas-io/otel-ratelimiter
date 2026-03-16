@@ -1,0 +1,7 @@
+.git
+*.md
+coverage.out
+coverage.html
+otelcol-ratelimiter/
+ocb
+LICENSE
