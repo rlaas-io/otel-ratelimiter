@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/rlaas-io/rlaas/pkg/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/suresh-p26/RLAAS/pkg/model"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -90,12 +90,11 @@ func TestLogsProcessor_AllDropped(t *testing.T) {
 	err = proc.ConsumeLogs(context.Background(), ld2)
 	require.NoError(t, err)
 
-	// Sink should only have the first batch.
-	allLogs := sink.AllLogs()
-	require.Len(t, allLogs, 1)
-
+	// Only the first batch's 2 records should survive; the second batch is fully dropped.
+	// Note: processorhelper still forwards the empty batch to the sink, so we check
+	// total record count rather than batch count.
 	totalRecords := 0
-	for _, l := range allLogs {
+	for _, l := range sink.AllLogs() {
 		totalRecords += l.LogRecordCount()
 	}
 	assert.Equal(t, 2, totalRecords)

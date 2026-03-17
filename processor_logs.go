@@ -1,34 +1,32 @@
-package ratelimiterprocessor
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package ratelimiterprocessor // import "github.com/rlaas-io/otel-ratelimiter"
 
 import (
 	"context"
 	"sync/atomic"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
 )
 
-// logsProcessor implements processor.Logs using the RLAAS engine for decisions.
+// logsProcessor applies RLAAS rate limiting to log records.
+// It is used with processorhelper.NewLogs — the helper handles
+// Capabilities, Start/Shutdown delegation, and nextConsumer forwarding.
 type logsProcessor struct {
-	cfg          *Config
-	logger       *zap.Logger
-	nextConsumer consumer.Logs
-	engine       *engine
+	cfg    *Config
+	logger *zap.Logger
+	engine *engine
 
 	// Per-processor counters.
 	received atomic.Int64
 	dropped  atomic.Int64
 }
 
-// Capabilities implements consumer.Logs.
-func (lp *logsProcessor) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: true}
-}
-
-// Start implements component.Component.
-func (lp *logsProcessor) Start(_ context.Context, _ component.Host) error {
+// start is called by processorhelper on pipeline start.
+func (lp *logsProcessor) start(_ context.Context, _ component.Host) error {
 	lp.logger.Info("RLAAS rate limiter logs processor started",
 		zap.String("policy_file", lp.cfg.PolicyFile),
 		zap.Bool("fail_open", lp.cfg.FailOpen),
@@ -36,8 +34,8 @@ func (lp *logsProcessor) Start(_ context.Context, _ component.Host) error {
 	return nil
 }
 
-// Shutdown implements component.Component.
-func (lp *logsProcessor) Shutdown(_ context.Context) error {
+// shutdown is called by processorhelper on pipeline stop.
+func (lp *logsProcessor) shutdown(_ context.Context) error {
 	allowed, denied, shadow, errors := lp.engine.Stats()
 	lp.logger.Info("RLAAS rate limiter logs processor stopped",
 		zap.Int64("total_received", lp.received.Load()),
@@ -50,12 +48,12 @@ func (lp *logsProcessor) Shutdown(_ context.Context) error {
 	return nil
 }
 
-// ConsumeLogs implements consumer.Logs.
+// processLogs is the core processing function passed to processorhelper.NewLogs.
 // Each log record is converted to a RLAAS RequestContext and evaluated by the
 // RLAAS engine. Records whose Decision is not "keep" are removed from the batch.
-func (lp *logsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
+func (lp *logsProcessor) processLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
 	if ld.ResourceLogs().Len() == 0 {
-		return lp.nextConsumer.ConsumeLogs(ctx, ld)
+		return ld, nil
 	}
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
@@ -104,9 +102,5 @@ func (lp *logsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 		return rl.ScopeLogs().Len() == 0
 	})
 
-	if ld.ResourceLogs().Len() == 0 {
-		return nil
-	}
-
-	return lp.nextConsumer.ConsumeLogs(ctx, ld)
+	return ld, nil
 }

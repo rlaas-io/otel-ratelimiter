@@ -2,9 +2,9 @@
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/suresh-p26/OTEL-RATELIMITER/actions/workflows/ci.yml/badge.svg)](https://github.com/suresh-p26/OTEL-RATELIMITER/actions/workflows/ci.yml)
+[![CI](https://github.com/rlaas-io/otel-ratelimiter/actions/workflows/ci.yml/badge.svg)](https://github.com/rlaas-io/otel-ratelimiter/actions/workflows/ci.yml)
 
-A production-ready **OpenTelemetry Collector processor** that applies configurable rate limiting to **logs**, **traces**, and **metrics** pipelines — powered by [RLAAS (Rate Limiting As A Service)](https://github.com/suresh-p26/RLAAS) as the core decision engine.
+A production-ready **OpenTelemetry Collector processor** that applies configurable rate limiting to **logs**, **traces**, and **metrics** pipelines — powered by [RLAAS (Rate Limiting As A Service)](https://github.com/rlaas-io/rlaas) as the core decision engine.
 
 ---
 
@@ -23,7 +23,7 @@ This processor sits inside the OpenTelemetry Collector pipeline and drops, throt
 
 ## RLAAS: The Decision Engine
 
-This processor delegates **all rate limiting decisions** to [RLAAS](https://github.com/suresh-p26/RLAAS). Rather than reimplementing algorithms from scratch, it uses RLAAS as the heart of its decision-making, giving you:
+This processor delegates **all rate limiting decisions** to [RLAAS](https://github.com/rlaas-io/rlaas). Rather than reimplementing algorithms from scratch, it uses RLAAS as the heart of its decision-making, giving you:
 
 ### 7 Algorithms (via RLAAS)
 
@@ -143,13 +143,13 @@ See the `Dockerfile` for the multi-stage build that uses ocb internally.
 ### Option 3: Go module (embed in your own collector)
 
 ```bash
-go get github.com/suresh-p26/OTEL-RATELIMITER
+go get github.com/rlaas-io/otel-ratelimiter
 ```
 
 Register the processor in your custom collector build:
 
 ```go
-import ratelimiterprocessor "github.com/suresh-p26/OTEL-RATELIMITER"
+import ratelimiterprocessor "github.com/rlaas-io/otel-ratelimiter"
 
 func components() (otelcol.Factories, error) {
     processors, err := processor.MakeFactoryMap(
@@ -309,7 +309,7 @@ service:
 | `enforcement_mode` | string | `enforce` or `shadow` |
 | `rollout_percent` | int | 0-100 gradual rollout |
 
-See [RLAAS Documentation](https://suresh-p26.github.io/RLAAS/) for the full policy schema.
+See [RLAAS Documentation](https://rlaas-io.github.io/rlaas/) for the full policy schema.
 
 ### Request Context Mapping
 
@@ -563,7 +563,7 @@ The GitHub Actions CI workflow (`.github/workflows/ci.yml`) runs on every push a
 
 ## Relationship to RLAAS
 
-This processor is a first-class consumer of the [RLAAS](https://github.com/suresh-p26/RLAAS) engine. RLAAS provides the complete rate limiting platform:
+This processor is a first-class consumer of the [RLAAS](https://github.com/rlaas-io/rlaas) engine. RLAAS provides the complete rate limiting platform:
 
 - **7 algorithms** — token bucket, sliding window (log & counter), fixed window, leaky bucket, concurrency, quota
 - **8 decision actions** — allow, deny, delay, sample, drop, downgrade, drop_low_priority, shadow_only
@@ -574,8 +574,8 @@ This processor is a first-class consumer of the [RLAAS](https://github.com/sures
 
 This OTel processor uses RLAAS with an **in-memory counter store** and a **file-based policy store**, making it ideal for embedded, collector-local rate limiting without external dependencies.
 
-**RLAAS GitHub:** https://github.com/suresh-p26/RLAAS  
-**RLAAS Documentation:** https://suresh-p26.github.io/RLAAS/
+**RLAAS GitHub:** https://github.com/rlaas-io/rlaas  
+**RLAAS Documentation:** https://rlaas-io.github.io/rlaas/
 
 ---
 

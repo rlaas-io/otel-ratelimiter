@@ -1,0 +1,88 @@
+display_name: Rate Limiter Processor
+type: ratelimiter
+
+description: >-
+  The Rate Limiter Processor applies configurable rate limiting to logs, traces,
+  and metrics pipelines using the RLAAS (Rate Limiting As A Service) engine.
+  It supports 7 algorithms (token bucket, sliding window, fixed window, leaky bucket,
+  concurrency, quota) and 8 decision actions (allow, deny, delay, sample, drop,
+  downgrade, drop_low_priority, shadow_only) with policy-based matching.
+
+status:
+  class: processor
+  stability:
+    alpha: [traces, metrics, logs]
+  distributions: []
+  codeowners:
+    active: [suresh-p26]
+
+tests:
+  config:
+    policy_file: testdata/integration_policies.json
+
+telemetry:
+  metrics:
+    processor_ratelimiter_logs.received:
+      enabled: true
+      description: Number of log records received by the rate limiter processor
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+      stability: development
+    processor_ratelimiter_logs.dropped:
+      enabled: true
+      description: Number of log records dropped by the rate limiter processor
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+      stability: development
+    processor_ratelimiter_spans.received:
+      enabled: true
+      description: Number of spans received by the rate limiter processor
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+      stability: development
+    processor_ratelimiter_spans.dropped:
+      enabled: true
+      description: Number of spans dropped by the rate limiter processor
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+      stability: development
+    processor_ratelimiter_metrics.received:
+      enabled: true
+      description: Number of metrics received by the rate limiter processor
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+      stability: development
+    processor_ratelimiter_metrics.dropped:
+      enabled: true
+      description: Number of metrics dropped by the rate limiter processor
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+      stability: development
+    processor_ratelimiter_evaluations.shadow:
+      enabled: true
+      description: Number of shadow-mode evaluations (no enforcement)
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+      stability: development
+    processor_ratelimiter_evaluations.errors:
+      enabled: true
+      description: Number of RLAAS engine evaluation errors
+      unit: "1"
+      sum:
+        value_type: int
+        monotonic: true
+      stability: development

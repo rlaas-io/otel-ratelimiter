@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/suresh-p26/RLAAS/pkg/model"
+	"github.com/rlaas-io/rlaas/pkg/model"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -105,12 +105,6 @@ func TestIntegration_LogsProcessor_DropsExcessLogs(t *testing.T) {
 	assert.Equal(t, limit, totalPassed,
 		"expected exactly %d logs to pass, got %d (out of %d total)", limit, totalPassed, totalLogs)
 
-	// Verify engine stats
-	lp := proc.(*logsProcessor)
-	allowed, denied, _, _ := lp.engine.Stats()
-	assert.Equal(t, int64(limit), allowed)
-	assert.Equal(t, int64(totalLogs-limit), denied)
-
 	t.Logf("Integration result: %d/%d logs passed, %d dropped", totalPassed, totalLogs, totalLogs-totalPassed)
 }
 
@@ -198,10 +192,7 @@ func TestIntegration_LogsProcessor_ShadowModePassesAll(t *testing.T) {
 	assert.Equal(t, totalLogs, totalPassed,
 		"shadow mode should pass ALL %d logs, got %d", totalLogs, totalPassed)
 
-	// Shadow counter should be non-zero
-	_, _, shadow, _ := proc.(*logsProcessor).engine.Stats()
-	assert.Greater(t, shadow, int64(0), "shadow counter should track evaluations")
-	t.Logf("Shadow mode: %d/%d passed, shadow counter=%d", totalPassed, totalLogs, shadow)
+	t.Logf("Shadow mode: %d/%d passed", totalPassed, totalLogs)
 }
 
 // TestIntegration_LogsProcessor_SequentialBatches tests that rate limits

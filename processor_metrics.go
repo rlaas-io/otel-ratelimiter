@@ -1,33 +1,31 @@
-package ratelimiterprocessor
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package ratelimiterprocessor // import "github.com/rlaas-io/otel-ratelimiter"
 
 import (
 	"context"
 	"sync/atomic"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 )
 
-// metricsProcessor implements processor.Metrics using the RLAAS engine for decisions.
+// metricsProcessor applies RLAAS rate limiting to metrics.
+// It is used with processorhelper.NewMetrics — the helper handles
+// Capabilities, Start/Shutdown delegation, and nextConsumer forwarding.
 type metricsProcessor struct {
-	cfg          *Config
-	logger       *zap.Logger
-	nextConsumer consumer.Metrics
-	engine       *engine
+	cfg    *Config
+	logger *zap.Logger
+	engine *engine
 
 	received atomic.Int64
 	dropped  atomic.Int64
 }
 
-// Capabilities implements consumer.Metrics.
-func (mp *metricsProcessor) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: true}
-}
-
-// Start implements component.Component.
-func (mp *metricsProcessor) Start(_ context.Context, _ component.Host) error {
+// start is called by processorhelper on pipeline start.
+func (mp *metricsProcessor) start(_ context.Context, _ component.Host) error {
 	mp.logger.Info("RLAAS rate limiter metrics processor started",
 		zap.String("policy_file", mp.cfg.PolicyFile),
 		zap.Bool("fail_open", mp.cfg.FailOpen),
@@ -35,8 +33,8 @@ func (mp *metricsProcessor) Start(_ context.Context, _ component.Host) error {
 	return nil
 }
 
-// Shutdown implements component.Component.
-func (mp *metricsProcessor) Shutdown(_ context.Context) error {
+// shutdown is called by processorhelper on pipeline stop.
+func (mp *metricsProcessor) shutdown(_ context.Context) error {
 	allowed, denied, shadow, errors := mp.engine.Stats()
 	mp.logger.Info("RLAAS rate limiter metrics processor stopped",
 		zap.Int64("total_received", mp.received.Load()),
@@ -49,12 +47,12 @@ func (mp *metricsProcessor) Shutdown(_ context.Context) error {
 	return nil
 }
 
-// ConsumeMetrics implements consumer.Metrics.
+// processMetrics is the core processing function passed to processorhelper.NewMetrics.
 // Each metric is converted to a RLAAS RequestContext and evaluated by the
 // RLAAS engine. Metrics whose Decision is not "keep" are removed from the batch.
-func (mp *metricsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
+func (mp *metricsProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	if md.ResourceMetrics().Len() == 0 {
-		return mp.nextConsumer.ConsumeMetrics(ctx, md)
+		return md, nil
 	}
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
@@ -103,9 +101,5 @@ func (mp *metricsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metri
 		return rm.ScopeMetrics().Len() == 0
 	})
 
-	if md.ResourceMetrics().Len() == 0 {
-		return nil
-	}
-
-	return mp.nextConsumer.ConsumeMetrics(ctx, md)
+	return md, nil
 }

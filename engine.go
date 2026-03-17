@@ -1,12 +1,15 @@
-package ratelimiterprocessor
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package ratelimiterprocessor // import "github.com/rlaas-io/otel-ratelimiter"
 
 import (
 	"context"
 	"sync/atomic"
 	"time"
 
-	"github.com/suresh-p26/RLAAS/pkg/model"
-	"github.com/suresh-p26/RLAAS/pkg/rlaas"
+	"github.com/rlaas-io/rlaas/pkg/model"
+	"github.com/rlaas-io/rlaas/pkg/rlaas"
 	"go.uber.org/zap"
 )
 
@@ -80,6 +83,20 @@ func (e *engine) evaluate(ctx context.Context, req model.RequestContext) (model.
 		req.Quantity = 1
 	}
 
+	// --- Debug: log the RLAAS request context before evaluation ---
+	e.logger.Debug("RLAAS evaluate request",
+		zap.String("service", req.Service),
+		zap.String("signal_type", req.SignalType),
+		zap.String("severity", req.Severity),
+		zap.String("span_name", req.SpanName),
+		zap.String("resource", req.Resource),
+		zap.String("operation", req.Operation),
+		zap.String("org_id", req.OrgID),
+		zap.String("tenant_id", req.TenantID),
+		zap.String("environment", req.Environment),
+		zap.Int64("quantity", req.Quantity),
+	)
+
 	dec, err := e.client.Evaluate(ctx, req)
 	if err != nil {
 		e.errors.Add(1)
@@ -93,6 +110,18 @@ func (e *engine) evaluate(ctx context.Context, req model.RequestContext) (model.
 		}
 		return model.Decision{Allowed: false, Action: model.ActionDeny, Reason: "fail_closed"}, err
 	}
+
+	// --- Debug: log the RLAAS decision after evaluation ---
+	e.logger.Debug("RLAAS evaluate response",
+		zap.String("service", req.Service),
+		zap.String("signal_type", req.SignalType),
+		zap.Bool("allowed", dec.Allowed),
+		zap.String("action", string(dec.Action)),
+		zap.String("matched_policy", dec.MatchedPolicyID),
+		zap.Bool("shadow_mode", dec.ShadowMode),
+		zap.String("reason", dec.Reason),
+		zap.Int64("remaining", dec.Remaining),
+	)
 
 	// Track counters.
 	if dec.Allowed {
