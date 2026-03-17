@@ -309,7 +309,7 @@ service:
 | `enforcement_mode` | string | `enforce` or `shadow` |
 | `rollout_percent` | int | 0-100 gradual rollout |
 
-See [RLAAS Documentation](https://suresh-p26.github.io/RLAAS/) for the full policy schema.
+See [RLAAS Documentation](https://rlaas-io.github.io/rlaas/) for the full policy schema.
 
 ### Request Context Mapping
 
@@ -575,7 +575,7 @@ This processor is a first-class consumer of the [RLAAS](https://github.com/rlaas
 This OTel processor uses RLAAS with an **in-memory counter store** and a **file-based policy store**, making it ideal for embedded, collector-local rate limiting without external dependencies.
 
 **RLAAS GitHub:** https://github.com/rlaas-io/rlaas  
-**RLAAS Documentation:** https://suresh-p26.github.io/RLAAS/
+**RLAAS Documentation:** https://rlaas-io.github.io/rlaas/
 
 ---
 
