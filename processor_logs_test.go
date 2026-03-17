@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/rlaas-io/rlaas/pkg/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/rlaas-io/rlaas/pkg/model"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/pdata/plog"
