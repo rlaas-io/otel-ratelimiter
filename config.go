@@ -1,9 +1,16 @@
-package ratelimiterprocessor
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package ratelimiterprocessor // import "github.com/rlaas-io/otel-ratelimiter"
 
 import (
 	"errors"
 	"time"
+
+	"go.opentelemetry.io/collector/component"
 )
+
+var _ component.Config = (*Config)(nil)
 
 // Config defines the configuration for the rate limiter processor.
 // Policies are defined in a RLAAS policy JSON file referenced by PolicyFile.

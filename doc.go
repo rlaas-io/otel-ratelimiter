@@ -1,8 +1,13 @@
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+//go:generate mdatagen metadata.yaml
+
 // Package ratelimiterprocessor provides an OpenTelemetry Collector processor
 // that applies configurable rate limiting to logs, traces, and metrics pipelines.
 //
 // It delegates all rate limiting decisions to the RLAAS (Rate Limiting As A Service)
-// engine (https://github.com/suresh-p26/RLAAS), which serves as the core decision-making
+// engine (https://github.com/rlaas-io/rlaas), which serves as the core decision-making
 // heart of this processor. RLAAS provides:
 //
 //   - 7 rate limiting algorithms: token_bucket, sliding_window_log, sliding_window_counter,

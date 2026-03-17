@@ -35,8 +35,6 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/suresh-p26/RLAAS v1.0.0 h1:vHlq9LYqEfmiRHnzbbecjWOBaf68LMg0OuNqmGBUHec=
-github.com/suresh-p26/RLAAS v1.0.0/go.mod h1:QvIC/I+Pjr1SFQMLtFMEzSw+wHH4RbdHeDdfTL1TsOA=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/collector/component v1.53.0 h1:A+GU9n4eKnFVmrr7NPpbVvJ1kp985jXtachb9gy12mk=
@@ -67,6 +65,8 @@ go.opentelemetry.io/collector/pipeline v1.53.0 h1:+RrNuAmHnzldGOzCCYLJv0qTFoi9QJ
 go.opentelemetry.io/collector/pipeline v1.53.0/go.mod h1:RD90NG3Jbk965Xaqym3JyHkuol4uZJjQVUkD9ddXJIs=
 go.opentelemetry.io/collector/processor v1.53.0 h1:ehUBUjVUIs8M/bfNfDuq1YhWuGzlet1UCKsdNP+8CWg=
 go.opentelemetry.io/collector/processor v1.53.0/go.mod h1:LtUUfQUo6FKJpd9uf9jwUqjJKa5twyiqkn4MSlHhcog=
+go.opentelemetry.io/collector/processor/processorhelper v0.147.0 h1:u++6eUnxfbTf1/AFrQWkUAMHNSy72EPgvIY3xdy/mz4=
+go.opentelemetry.io/collector/processor/processorhelper v0.147.0/go.mod h1:wDL/vMzaPpBMO+ZAqB2IKETNJdz822aGrIhQcK89sfc=
 go.opentelemetry.io/collector/processor/processortest v0.147.0 h1:1HzGo3CfRxH0RreJKbw9INZwNwnvtUfb0yYlT7A7DwY=
 go.opentelemetry.io/collector/processor/processortest v0.147.0/go.mod h1:JkeOS3E1BH6MUAcvTaVNIgUSXD+IGggi1pdvbRwMctE=
 go.opentelemetry.io/collector/processor/xprocessor v0.147.0 h1:whDSBgNY/fiRpaCLoz1FgJ6h/Ont3WotCiHQm2N3kAw=

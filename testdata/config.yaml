@@ -1,0 +1,38 @@
+receivers:
+  nop:
+
+processors:
+  ratelimiter:
+    policy_file: testdata/integration_policies.json
+    fail_open: true
+    cache_ttl: 30s
+    key_prefix: otel
+    environment: test
+
+  ratelimiter/custom:
+    policy_file: testdata/integration_policies.json
+    fail_open: false
+    cache_ttl: 1m
+    key_prefix: custom
+    org_id: my-org
+    tenant_id: my-tenant
+    application: my-app
+    environment: production
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    logs:
+      receivers: [nop]
+      processors: [ratelimiter]
+      exporters: [nop]
+    traces:
+      receivers: [nop]
+      processors: [ratelimiter]
+      exporters: [nop]
+    metrics:
+      receivers: [nop]
+      processors: [ratelimiter/custom]
+      exporters: [nop]

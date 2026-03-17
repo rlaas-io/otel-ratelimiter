@@ -1,33 +1,31 @@
-package ratelimiterprocessor
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package ratelimiterprocessor // import "github.com/rlaas-io/otel-ratelimiter"
 
 import (
 	"context"
 	"sync/atomic"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 )
 
-// tracesProcessor implements processor.Traces using the RLAAS engine for decisions.
+// tracesProcessor applies RLAAS rate limiting to spans.
+// It is used with processorhelper.NewTraces — the helper handles
+// Capabilities, Start/Shutdown delegation, and nextConsumer forwarding.
 type tracesProcessor struct {
-	cfg          *Config
-	logger       *zap.Logger
-	nextConsumer consumer.Traces
-	engine       *engine
+	cfg    *Config
+	logger *zap.Logger
+	engine *engine
 
 	received atomic.Int64
 	dropped  atomic.Int64
 }
 
-// Capabilities implements consumer.Traces.
-func (tp *tracesProcessor) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: true}
-}
-
-// Start implements component.Component.
-func (tp *tracesProcessor) Start(_ context.Context, _ component.Host) error {
+// start is called by processorhelper on pipeline start.
+func (tp *tracesProcessor) start(_ context.Context, _ component.Host) error {
 	tp.logger.Info("RLAAS rate limiter traces processor started",
 		zap.String("policy_file", tp.cfg.PolicyFile),
 		zap.Bool("fail_open", tp.cfg.FailOpen),
@@ -35,8 +33,8 @@ func (tp *tracesProcessor) Start(_ context.Context, _ component.Host) error {
 	return nil
 }
 
-// Shutdown implements component.Component.
-func (tp *tracesProcessor) Shutdown(_ context.Context) error {
+// shutdown is called by processorhelper on pipeline stop.
+func (tp *tracesProcessor) shutdown(_ context.Context) error {
 	allowed, denied, shadow, errors := tp.engine.Stats()
 	tp.logger.Info("RLAAS rate limiter traces processor stopped",
 		zap.Int64("total_received", tp.received.Load()),
@@ -49,12 +47,12 @@ func (tp *tracesProcessor) Shutdown(_ context.Context) error {
 	return nil
 }
 
-// ConsumeTraces implements consumer.Traces.
+// processTraces is the core processing function passed to processorhelper.NewTraces.
 // Each span is converted to a RLAAS RequestContext and evaluated by the
 // RLAAS engine. Spans whose Decision is not "keep" are removed from the batch.
-func (tp *tracesProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
+func (tp *tracesProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	if td.ResourceSpans().Len() == 0 {
-		return tp.nextConsumer.ConsumeTraces(ctx, td)
+		return td, nil
 	}
 
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
@@ -103,9 +101,5 @@ func (tp *tracesProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) 
 		return rs.ScopeSpans().Len() == 0
 	})
 
-	if td.ResourceSpans().Len() == 0 {
-		return nil
-	}
-
-	return tp.nextConsumer.ConsumeTraces(ctx, td)
+	return td, nil
 }

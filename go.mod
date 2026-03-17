@@ -1,21 +1,25 @@
-module github.com/suresh-p26/OTEL-RATELIMITER
+module github.com/rlaas-io/otel-ratelimiter
 
 go 1.25.0
 
 toolchain go1.25.8
 
 require (
+	github.com/rlaas-io/rlaas v1.0.0
 	github.com/stretchr/testify v1.11.1
-	github.com/suresh-p26/RLAAS v1.0.0
 	go.opentelemetry.io/collector/component v1.53.0
 	go.opentelemetry.io/collector/component/componenttest v0.147.0
 	go.opentelemetry.io/collector/consumer v1.53.0
 	go.opentelemetry.io/collector/consumer/consumertest v0.147.0
 	go.opentelemetry.io/collector/pdata v1.53.0
 	go.opentelemetry.io/collector/processor v1.53.0
+	go.opentelemetry.io/collector/processor/processorhelper v0.147.0
 	go.opentelemetry.io/collector/processor/processortest v0.147.0
+	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.1
 )
+
+replace github.com/rlaas-io/rlaas => ../RLAAS
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

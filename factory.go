@@ -1,4 +1,7 @@
-package ratelimiterprocessor
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package ratelimiterprocessor // import "github.com/rlaas-io/otel-ratelimiter"
 
 import (
 	"context"
@@ -7,20 +10,21 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/collector/processor/processorhelper"
+
+	"github.com/rlaas-io/otel-ratelimiter/internal/metadata"
 )
 
-const (
-	typeStr = "ratelimiter"
-)
+var processorCapabilities = consumer.Capabilities{MutatesData: true}
 
 // NewFactory creates a new factory for the rate limiter processor.
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
-		component.MustNewType(typeStr),
+		metadata.Type,
 		createDefaultConfig,
-		processor.WithLogs(createLogsProcessor, component.StabilityLevelAlpha),
-		processor.WithTraces(createTracesProcessor, component.StabilityLevelAlpha),
-		processor.WithMetrics(createMetricsProcessor, component.StabilityLevelAlpha),
+		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
+		processor.WithTraces(createTracesProcessor, metadata.TracesStability),
+		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 	)
 }
 
@@ -41,12 +45,17 @@ func createLogsProcessor(
 ) (processor.Logs, error) {
 	oCfg := cfg.(*Config)
 	eng := newEngine(oCfg, set.TelemetrySettings.Logger)
-	return &logsProcessor{
-		cfg:          oCfg,
-		logger:       set.TelemetrySettings.Logger,
-		nextConsumer: nextConsumer,
-		engine:       eng,
-	}, nil
+	lp := &logsProcessor{
+		cfg:    oCfg,
+		logger: set.TelemetrySettings.Logger,
+		engine: eng,
+	}
+	return processorhelper.NewLogs(
+		ctx, set, cfg, nextConsumer, lp.processLogs,
+		processorhelper.WithCapabilities(processorCapabilities),
+		processorhelper.WithStart(lp.start),
+		processorhelper.WithShutdown(lp.shutdown),
+	)
 }
 
 func createTracesProcessor(
@@ -57,12 +66,17 @@ func createTracesProcessor(
 ) (processor.Traces, error) {
 	oCfg := cfg.(*Config)
 	eng := newEngine(oCfg, set.TelemetrySettings.Logger)
-	return &tracesProcessor{
-		cfg:          oCfg,
-		logger:       set.TelemetrySettings.Logger,
-		nextConsumer: nextConsumer,
-		engine:       eng,
-	}, nil
+	tp := &tracesProcessor{
+		cfg:    oCfg,
+		logger: set.TelemetrySettings.Logger,
+		engine: eng,
+	}
+	return processorhelper.NewTraces(
+		ctx, set, cfg, nextConsumer, tp.processTraces,
+		processorhelper.WithCapabilities(processorCapabilities),
+		processorhelper.WithStart(tp.start),
+		processorhelper.WithShutdown(tp.shutdown),
+	)
 }
 
 func createMetricsProcessor(
@@ -73,10 +87,15 @@ func createMetricsProcessor(
 ) (processor.Metrics, error) {
 	oCfg := cfg.(*Config)
 	eng := newEngine(oCfg, set.TelemetrySettings.Logger)
-	return &metricsProcessor{
-		cfg:          oCfg,
-		logger:       set.TelemetrySettings.Logger,
-		nextConsumer: nextConsumer,
-		engine:       eng,
-	}, nil
+	mp := &metricsProcessor{
+		cfg:    oCfg,
+		logger: set.TelemetrySettings.Logger,
+		engine: eng,
+	}
+	return processorhelper.NewMetrics(
+		ctx, set, cfg, nextConsumer, mp.processMetrics,
+		processorhelper.WithCapabilities(processorCapabilities),
+		processorhelper.WithStart(mp.start),
+		processorhelper.WithShutdown(mp.shutdown),
+	)
 }

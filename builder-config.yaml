@@ -19,11 +19,11 @@ exporters:
 
 processors:
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.147.0
-  - gomod: github.com/suresh-p26/OTEL-RATELIMITER v1.0.0
+  - gomod: github.com/rlaas-io/otel-ratelimiter v1.0.0
     name: ratelimiterprocessor
 
 replaces:
-  - github.com/suresh-p26/OTEL-RATELIMITER => ../
+  - github.com/rlaas-io/otel-ratelimiter => ../
 
 receivers:
   - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.147.0
