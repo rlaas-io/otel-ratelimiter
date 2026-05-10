@@ -19,11 +19,12 @@ import (
 // engine wraps a RLAAS client with fail-open/fail-closed semantics, thread-safe
 // hot reload, and optional inline-policy temp-file management.
 type engine struct {
-	mu       sync.RWMutex // protects client during Reload()
-	client   rlaas.Evaluator
-	logger   *zap.Logger
-	failOpen bool
-	defaults requestDefaults
+	mu        sync.RWMutex // protects client during Reload()
+	client    rlaas.Evaluator
+	logger    *zap.Logger
+	failOpen  bool
+	defaults  requestDefaults
+	selectors fieldSelectors
 
 	// Retained for hot reload.
 	policyFile string
@@ -98,6 +99,7 @@ func newEngine(cfg *Config, logger *zap.Logger) (*engine, error) {
 			application: cfg.Application,
 			environment: cfg.Environment,
 		},
+		selectors: selectorsFromConfig(cfg),
 	}, nil
 }
 

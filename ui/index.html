@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RLAAS Admin Console</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="#3b82f6"/>
+          <path d="M8 23 L13 13 L19 19 L23 11" stroke="white" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="8" cy="23" r="2.5" fill="white"/>
+        </svg>
+      </div>
+      <div class="brand-meta">
+        <span class="brand-name">RLAAS Admin</span>
+        <div class="brand-status">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-text" id="statusText">Connecting…</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="nav" id="sideNav">
+      <button class="nav-item active" data-tab="overview">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4
+            10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1
+            1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+        </svg>
+        Overview
+      </button>
+      <button class="nav-item" data-tab="stats">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0
+            01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0
+            01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0
+            01-1-1V4z"/>
+        </svg>
+        Live Stats
+      </button>
+      <button class="nav-item" data-tab="config">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532
+            1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061
+            2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947
+            2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379
+            1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836
+            2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379
+            1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532
+            1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+        </svg>
+        Configuration
+      </button>
+      <button class="nav-item" data-tab="policies">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112
+            2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2
+            6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0
+            100-2H7z" clip-rule="evenodd"/>
+        </svg>
+        Policies
+      </button>
+      <button class="nav-item" data-tab="actions">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0
+            01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0
+            011.12-.38z" clip-rule="evenodd"/>
+        </svg>
+        Actions
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <label class="field-label">API Endpoint</label>
+      <input class="field-input" id="baseURL" type="text" placeholder="auto-detected" autocomplete="off" spellcheck="false">
+      <label class="field-label" style="margin-top:.6rem;">Bearer Token</label>
+      <input class="field-input" id="authToken" type="password" placeholder="optional" autocomplete="off">
+      <div class="refresh-row">
+        <span class="refresh-hint" id="refreshHint">Refresh in 10s</span>
+        <button class="btn-refresh" id="refreshBtn">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0
+              1 .908-.417A6 6 0 1 1 8 2v1z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284
+              0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+  <main class="main">
+
+    <!-- ── OVERVIEW ─────────────────────────────────── -->
+    <section id="tab-overview" class="tab active">
+      <div class="page-header">
+        <h1 class="page-title">Overview</h1>
+        <p class="page-sub">Runtime health and cumulative traffic summary.</p>
+      </div>
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card skeleton"></div>
+        <div class="kpi-card skeleton"></div>
+        <div class="kpi-card skeleton"></div>
+        <div class="kpi-card skeleton"></div>
+        <div class="kpi-card skeleton"></div>
+      </div>
+      <div class="section-row">
+        <h2 class="section-title">Per-Signal Breakdown</h2>
+      </div>
+      <div class="signal-grid" id="signalGrid">
+        <div class="signal-card skeleton" style="height:140px;"></div>
+      </div>
+    </section>
+
+    <!-- ── LIVE STATS ────────────────────────────────── -->
+    <section id="tab-stats" class="tab">
+      <div class="page-header">
+        <h1 class="page-title">Live Stats</h1>
+        <p class="page-sub">Cumulative counters per signal — auto-refreshes every 10 seconds.</p>
+      </div>
+      <div class="card" id="statsCard">
+        <div class="empty-state">Loading stats…</div>
+      </div>
+    </section>
+
+    <!-- ── CONFIGURATION ──────────────────────────────── -->
+    <section id="tab-config" class="tab">
+      <div class="page-header">
+        <h1 class="page-title">Configuration</h1>
+        <p class="page-sub">Active processor configuration. Auth token shown as enabled/disabled — the value is never exposed.</p>
+      </div>
+      <div id="configContent">
+        <div class="card"><div class="empty-state">Loading configuration…</div></div>
+      </div>
+    </section>
+
+    <!-- ── POLICIES ───────────────────────────────────── -->
+    <section id="tab-policies" class="tab">
+      <div class="page-header">
+        <h1 class="page-title">Active Policies</h1>
+        <p class="page-sub">Policy payload currently loaded in the engine, with integrity metadata.</p>
+      </div>
+      <div class="meta-grid" id="policyMetaGrid"></div>
+      <div class="card json-card">
+        <div class="json-toolbar">
+          <span class="json-title">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15" style="vertical-align:middle;margin-right:5px;opacity:.6">
+              <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0
+                01-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414
+                10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0
+                011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0
+                11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+            Policy JSON
+          </span>
+          <button class="btn-sm" id="copyPoliciesBtn">Copy</button>
+        </div>
+        <pre class="json-pre" id="policyJSON"><code id="policyCode">Loading…</code></pre>
+      </div>
+    </section>
+
+    <!-- ── ACTIONS ────────────────────────────────────── -->
+    <section id="tab-actions" class="tab">
+      <div class="page-header">
+        <h1 class="page-title">Actions</h1>
+        <p class="page-sub">Operational controls and API explorer.</p>
+      </div>
+
+      <div class="reload-card">
+        <div class="reload-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+            <polyline points="1 4 1 10 7 10"/>
+            <path d="M3.51 15a9 9 0 1 0 .49-4.2"/>
+          </svg>
+        </div>
+        <div class="reload-body">
+          <h3>Reload Policies</h3>
+          <p>Force an immediate policy reload across all registered engines — no restart required. Use this after updating the policy file to apply changes instantly rather than waiting for the watch interval.</p>
+          <div class="reload-controls">
+            <button class="btn-reload" id="reloadBtn">↺ &nbsp;Reload Now</button>
+            <span class="reload-result" id="reloadResult"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-row" style="margin-top:2.5rem;">
+        <h2 class="section-title">API Explorer</h2>
+        <p class="section-sub">Call any endpoint, inspect responses, and copy curl commands.</p>
+      </div>
+      <div class="explorer-list" id="explorerList"></div>
+    </section>
+
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

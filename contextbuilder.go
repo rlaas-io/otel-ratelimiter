@@ -13,46 +13,85 @@ import (
 
 // buildLogsContext builds a RLAAS RequestContext from an OTel log record.
 func buildLogsContext(resource pcommon.Resource, lr plog.LogRecord) model.RequestContext {
+	return buildLogsContextWithSelectors(resource, lr, fieldSelectors{})
+}
+
+func buildLogsContextWithSelectors(resource pcommon.Resource, lr plog.LogRecord, selectors fieldSelectors) model.RequestContext {
+	resourceAttrs := extractResourceAttributes(resource)
 	tags := extractAllAttributes(resource, lr.Attributes())
+	service := evalSelector(selectors.service, resourceAttrs, tags)
+	if service == "" {
+		service = resourceAttr(resource, "service.name")
+	}
 
 	return model.RequestContext{
-		Service:    resourceAttr(resource, "service.name"),
-		SignalType: "log",
-		Severity:   lr.SeverityText(),
-		Operation:  "otel_log",
-		Quantity:   1,
-		Tags:       tags,
-		Attributes: tags,
+		Service:     service,
+		SignalType:  "log",
+		Severity:    lr.SeverityText(),
+		Operation:   "otel_log",
+		OrgID:       evalSelector(selectors.orgID, resourceAttrs, tags),
+		TenantID:    evalSelector(selectors.tenantID, resourceAttrs, tags),
+		Application: evalSelector(selectors.application, resourceAttrs, tags),
+		Environment: evalSelector(selectors.environment, resourceAttrs, tags),
+		Quantity:    1,
+		Tags:        tags,
+		Attributes:  tags,
 	}
 }
 
 // buildTracesContext builds a RLAAS RequestContext from an OTel span.
 func buildTracesContext(resource pcommon.Resource, span ptrace.Span) model.RequestContext {
+	return buildTracesContextWithSelectors(resource, span, fieldSelectors{})
+}
+
+func buildTracesContextWithSelectors(resource pcommon.Resource, span ptrace.Span, selectors fieldSelectors) model.RequestContext {
+	resourceAttrs := extractResourceAttributes(resource)
 	tags := extractAllAttributes(resource, span.Attributes())
+	service := evalSelector(selectors.service, resourceAttrs, tags)
+	if service == "" {
+		service = resourceAttr(resource, "service.name")
+	}
 
 	return model.RequestContext{
-		Service:    resourceAttr(resource, "service.name"),
-		SignalType: "span",
-		SpanName:   span.Name(),
-		Operation:  "otel_span",
-		Quantity:   1,
-		Tags:       tags,
-		Attributes: tags,
+		Service:     service,
+		SignalType:  "span",
+		SpanName:    span.Name(),
+		Operation:   "otel_span",
+		OrgID:       evalSelector(selectors.orgID, resourceAttrs, tags),
+		TenantID:    evalSelector(selectors.tenantID, resourceAttrs, tags),
+		Application: evalSelector(selectors.application, resourceAttrs, tags),
+		Environment: evalSelector(selectors.environment, resourceAttrs, tags),
+		Quantity:    1,
+		Tags:        tags,
+		Attributes:  tags,
 	}
 }
 
 // buildMetricsContext builds a RLAAS RequestContext from an OTel metric.
 func buildMetricsContext(resource pcommon.Resource, metric pmetric.Metric) model.RequestContext {
+	return buildMetricsContextWithSelectors(resource, metric, fieldSelectors{})
+}
+
+func buildMetricsContextWithSelectors(resource pcommon.Resource, metric pmetric.Metric, selectors fieldSelectors) model.RequestContext {
+	resourceAttrs := extractResourceAttributes(resource)
 	tags := extractResourceAttributes(resource)
+	service := evalSelector(selectors.service, resourceAttrs, tags)
+	if service == "" {
+		service = resourceAttr(resource, "service.name")
+	}
 
 	return model.RequestContext{
-		Service:    resourceAttr(resource, "service.name"),
-		SignalType: "metric",
-		Resource:   metric.Name(),
-		Operation:  "otel_metric",
-		Quantity:   1,
-		Tags:       tags,
-		Attributes: tags,
+		Service:     service,
+		SignalType:  "metric",
+		Resource:    metric.Name(),
+		Operation:   "otel_metric",
+		OrgID:       evalSelector(selectors.orgID, resourceAttrs, tags),
+		TenantID:    evalSelector(selectors.tenantID, resourceAttrs, tags),
+		Application: evalSelector(selectors.application, resourceAttrs, tags),
+		Environment: evalSelector(selectors.environment, resourceAttrs, tags),
+		Quantity:    1,
+		Tags:        tags,
+		Attributes:  tags,
 	}
 }
 

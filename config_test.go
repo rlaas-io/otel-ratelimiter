@@ -22,14 +22,22 @@ func TestConfig_Validate_Valid(t *testing.T) {
 		{
 			name: "all fields",
 			cfg: Config{
-				PolicyFile:  "/path/to/policies.json",
-				FailOpen:    true,
-				CacheTTL:    30 * time.Second,
-				KeyPrefix:   "otel",
-				OrgID:       "org-1",
-				TenantID:    "tenant-1",
-				Application: "my-app",
-				Environment: "production",
+				PolicyFile:       "/path/to/policies.json",
+				FailOpen:         true,
+				CacheTTL:         30 * time.Second,
+				KeyPrefix:        "otel",
+				OrgID:            "org-1",
+				TenantID:         "tenant-1",
+				Application:      "my-app",
+				Environment:      "production",
+				ServiceExpr:      "resource.attributes.service.name || attributes.service",
+				OrgIDExpr:        "resource.attributes.org.id",
+				TenantIDExpr:     "attributes.tenant.id",
+				ApplicationExpr:  "attributes.app.name",
+				EnvironmentExpr:  "attributes.deployment.environment",
+				AdminAuthToken:   "secret-token",
+				AdminTLSCertFile: "/tmp/admin.crt",
+				AdminTLSKeyFile:  "/tmp/admin.key",
 			},
 		},
 	}
@@ -83,6 +91,22 @@ func TestConfig_Validate_Invalid(t *testing.T) {
 				MaxBatchSize: -1,
 			},
 			wantErr: "max_batch_size must not be negative",
+		},
+		{
+			name: "tls cert without key",
+			cfg: Config{
+				PolicyFile:       "/path/to/policies.json",
+				AdminTLSCertFile: "/tmp/admin.crt",
+			},
+			wantErr: "admin_tls_cert_file and admin_tls_key_file must be set together",
+		},
+		{
+			name: "tls key without cert",
+			cfg: Config{
+				PolicyFile:      "/path/to/policies.json",
+				AdminTLSKeyFile: "/tmp/admin.key",
+			},
+			wantErr: "admin_tls_cert_file and admin_tls_key_file must be set together",
 		},
 	}
 

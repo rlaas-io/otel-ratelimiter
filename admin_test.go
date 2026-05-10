@@ -103,6 +103,15 @@ func TestAdminAPI_Endpoints(t *testing.T) {
 	assert.Equal(t, cfg.PolicyFile, conf["policy_file"])
 	assert.Equal(t, cfg.AdminAddr, conf["admin_addr"])
 
+	resp, err = http.Get(baseURL + "/config/policies") //nolint:gosec
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	var policyCfg map[string]any
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&policyCfg))
+	assert.Equal(t, "file", policyCfg["source"])
+	assert.EqualValues(t, 1, policyCfg["policy_count"])
+
 	req, err := http.NewRequest(http.MethodPost, baseURL+"/reload", nil)
 	require.NoError(t, err)
 	resp, err = http.DefaultClient.Do(req)
@@ -124,4 +133,74 @@ func TestAdminAPI_Endpoints(t *testing.T) {
 	assert.Contains(t, metricsText, "signal=\"logs\"")
 
 	deregisterFromAdmin("logs")
+}
+
+func TestAdminAPI_AuthToken(t *testing.T) {
+	stopAdminServerForTest(t)
+	t.Cleanup(func() { stopAdminServerForTest(t) })
+
+	policyFile := createTempPolicyFile(t, []model.Policy{
+		tokenBucketPolicy("p-auth", "admin auth", "log", 5, 5, model.ActionDrop),
+	})
+	addr := freeTCPAddr(t)
+	cfg := &Config{
+		PolicyFile:       policyFile,
+		FailOpen:         true,
+		AdminAddr:        addr,
+		AdminAuthToken:   "super-secret-token",
+		AdminTokenHeader: "Authorization",
+	}
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
+
+	registerWithAdmin(cfg, eng, "logs", func() int64 { return 0 }, func() int64 { return 0 }, zaptest.NewLogger(t))
+
+	baseURL := "http://" + addr
+	waitForHTTP(t, baseURL+"/health")
+
+	resp, err := http.Get(baseURL + "/health") //nolint:gosec
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+	req, err := http.NewRequest(http.MethodGet, baseURL+"/health", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer super-secret-token")
+	resp, err = http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestAdminAPI_CORSPreflight(t *testing.T) {
+	stopAdminServerForTest(t)
+	t.Cleanup(func() { stopAdminServerForTest(t) })
+
+	policyFile := createTempPolicyFile(t, []model.Policy{
+		tokenBucketPolicy("p-cors", "admin cors", "log", 5, 5, model.ActionDrop),
+	})
+	addr := freeTCPAddr(t)
+	cfg := &Config{
+		PolicyFile:              policyFile,
+		FailOpen:                true,
+		AdminAddr:               addr,
+		AdminCORSAllowedOrigins: []string{"https://docs.example.com"},
+	}
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
+
+	registerWithAdmin(cfg, eng, "logs", func() int64 { return 0 }, func() int64 { return 0 }, zaptest.NewLogger(t))
+
+	baseURL := "http://" + addr
+	waitForHTTP(t, baseURL+"/health")
+
+	req, err := http.NewRequest(http.MethodOptions, baseURL+"/health", nil)
+	require.NoError(t, err)
+	req.Header.Set("Origin", "https://docs.example.com")
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+	assert.Equal(t, "https://docs.example.com", resp.Header.Get("Access-Control-Allow-Origin"))
 }
