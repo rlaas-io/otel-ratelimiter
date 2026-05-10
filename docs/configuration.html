@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 </head>
 <body>
   <nav class="nav"><div class="nav-inner">
@@ -194,7 +195,17 @@ curl -s https://collector:8090/config/policies | jq '.content_sha256'</code></pr
     </ol>
   </section>
 
-  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Configuration</span></div></footer>
+  <footer class="footer">
+    <div class="footer-inner">
+      <ul class="footer-links">
+        <li><a href="index.html">Overview</a></li>
+        <li><a href="getting-started.html">Getting Started</a></li>
+        <li><a href="policies.html">Policies</a></li>
+        <li><a href="examples.html">Examples</a></li>
+      </ul>
+      <span>OTEL Rate Limiter Docs · Configuration</span>
+    </div>
+  </footer>
   <script src="js/nav.js"></script>
 </body>
 </html>

@@ -4,130 +4,299 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Behavior Diagrams - OTEL Rate Limiter</title>
-  <meta name="description" content="Visual diagrams explaining current telemetry flow and behavior after OTEL rate limiter enhancements." />
+  <meta name="description" content="Visual before/after diagrams showing how the OTEL Rate Limiter changes your telemetry pipeline — data path, decision logic, and operator control loop." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 </head>
 <body>
-  <nav class="nav"><div class="nav-inner">
-    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
-    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-    <ul class="nav-links">
-      <li><a href="index.html">Overview</a></li>
-      <li><a href="getting-started.html">Getting Started</a></li>
-      <li><a href="configuration.html">Configuration</a></li>
-      <li><a href="policies.html">Policies</a></li>
-      <li><a href="behavior-diagrams.html" class="active">Diagrams</a></li>
-      <li><a href="admin-api.html">Admin API</a></li>
-      <li><a href="monitoring.html">Monitoring</a></li>
-      <li><a href="examples.html" class="nav-cta">Examples</a></li>
-    </ul>
-  </div></nav>
+  <nav class="nav"><div class="nav-inner"></div></nav>
 
-  <header class="hero" style="padding: 4rem 1.2rem 3.4rem;">
-    <h1>Current Behavior vs Enhanced Behavior</h1>
-    <p class="subtitle">Understand exactly what changed in runtime flow, control points, and operator experience.</p>
+  <header class="hero" style="padding:4rem 1.2rem 3.4rem;">
+    <h1>Before &amp; After — How It Really Changes</h1>
+    <p class="subtitle">Side-by-side visuals showing what your telemetry pipeline looks like without the rate limiter, and exactly what you gain when you add it.</p>
   </header>
 
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 1 — DATA PATH COMPARISON
+  ═══════════════════════════════════════════════════════════ -->
   <section class="content-wide">
-    <h2>1) Data Path Comparison</h2>
-    <p class="section-intro">Left is a typical collector pipeline without advanced controls. Right shows how the enhanced processor adds guardrails and operations hooks.</p>
+    <h2>1. Data Path: Before vs After</h2>
+    <p class="section-intro">Without the processor every record flows straight through regardless of volume. After adding it, each record is evaluated against your policy before reaching any exporter.</p>
 
     <div class="compare-grid">
+
+      <!-- BEFORE -->
       <article class="diagram-card before">
-        <h3>Before (basic behavior)</h3>
-        <div class="flow-block">OTLP Receiver</div>
-        <div class="flow-arrow">down</div>
-        <div class="flow-block">Collector Pipeline</div>
-        <div class="flow-arrow">down</div>
-        <div class="flow-block">Exporter</div>
-        <div class="flow-note">Outcome: burst traffic can pass through with limited operational controls.</div>
+        <h3 style="margin-top:0;color:#b91c1c;">
+          <span style="font-size:.9em;">⚠</span> Before — No rate limiting
+        </h3>
+
+        <div class="pipeline-node source">OTLP Receiver<br><small style="font-weight:400;color:#60a5fa;">Logs, Traces, Metrics</small></div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-node warn">Collector Pipeline<br><small style="font-weight:400;color:#f87171;">No evaluation, no controls</small></div>
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-node exporter">Exporter<br><small style="font-weight:400;color:#34d399;">All records pass through</small></div>
+
+        <div style="margin-top:1.25rem;display:grid;gap:.5rem;">
+          <div class="outcome-badge outcome-bad" style="border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+            ✗ Burst traffic hits backend directly
+          </div>
+          <div class="outcome-badge outcome-bad" style="border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+            ✗ No per-service spend control
+          </div>
+          <div class="outcome-badge outcome-bad" style="border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+            ✗ No visibility into what's noisy
+          </div>
+          <div class="outcome-badge outcome-bad" style="border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+            ✗ Policy changes require redeployment
+          </div>
+        </div>
       </article>
 
+      <!-- AFTER -->
       <article class="diagram-card after">
-        <h3>After (enhanced behavior)</h3>
-        <div class="flow-block">OTLP Receiver</div>
-        <div class="flow-arrow">down</div>
-        <div class="flow-block">OTEL Rate Limiter Processor</div>
-        <div class="flow-subgrid">
-          <span class="pill">Policy evaluation</span>
-          <span class="pill">Max batch cap</span>
-          <span class="pill">Shadow mode</span>
-          <span class="pill">Fail open/closed</span>
+        <h3 style="margin-top:0;color:#15803d;">
+          <span style="font-size:.9em;">✓</span> After — Policy-driven pipeline
+        </h3>
+
+        <div class="pipeline-node source">OTLP Receiver<br><small style="font-weight:400;color:#60a5fa;">Logs, Traces, Metrics</small></div>
+        <div class="pipeline-arrow">↓</div>
+
+        <div class="processor-innards">
+          <div class="label">Rate Limiter Processor</div>
+          <div class="processor-steps">
+            <div class="processor-step">① Batch Guard<br><span style="font-size:.72rem;color:#6366f1;">max_batch_size</span></div>
+            <div class="processor-step">② Context Builder<br><span style="font-size:.72rem;color:#6366f1;">signal + service</span></div>
+            <div class="processor-step">③ Policy Evaluator<br><span style="font-size:.72rem;color:#6366f1;">RLAAS engine</span></div>
+            <div class="processor-step">④ Decision Engine<br><span style="font-size:.72rem;color:#6366f1;">allow / drop / shadow</span></div>
+          </div>
         </div>
-        <div class="flow-arrow">down</div>
-        <div class="flow-block">Exporter</div>
-        <div class="flow-note">Outcome: controlled throughput, reduced backend stress, and predictable cost.</div>
+
+        <div class="pipeline-arrow">↓</div>
+        <div class="pipeline-node exporter">Exporter<br><small style="font-weight:400;color:#34d399;">Only policy-approved records</small></div>
+
+        <div style="margin-top:1.25rem;display:grid;gap:.5rem;">
+          <div class="outcome-badge outcome-good" style="border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+            ✓ Burst traffic absorbed by token bucket
+          </div>
+          <div class="outcome-badge outcome-good" style="border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+            ✓ Per-service rate limits enforced
+          </div>
+          <div class="outcome-badge outcome-good" style="border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+            ✓ Full metrics on every decision
+          </div>
+          <div class="outcome-badge outcome-good" style="border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+            ✓ Hot reload — no restarts needed
+          </div>
+        </div>
       </article>
     </div>
   </section>
 
-  <section class="content-wide">
-    <h2>2) Control Plane and Operator Loop</h2>
-    <div class="diagram-stack">
-      <div class="lane">
-        <div class="lane-title">Policy source</div>
-        <div class="lane-row">
-          <span class="pill">policy_file</span>
-          <span class="arrow-right">-></span>
-          <span class="pill">watch_policies</span>
-          <span class="arrow-right">-></span>
-          <span class="pill">engine.Reload()</span>
-        </div>
-      </div>
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 2 — DECISION FLOW SVG
+  ═══════════════════════════════════════════════════════════ -->
+  <section class="content-wide" style="padding-top:0;">
+    <h2>2. How a Single Record Is Decided</h2>
+    <p class="section-intro">Every record that enters the processor is evaluated against this exact logic — in sequence, in microseconds.</p>
 
-      <div class="lane">
-        <div class="lane-title">Runtime controls</div>
-        <div class="lane-row">
-          <span class="pill">POST /reload</span>
-          <span class="arrow-right">-></span>
-          <span class="pill">all engines refresh</span>
-          <span class="arrow-right">-></span>
-          <span class="pill">reload counter++</span>
-        </div>
-      </div>
+    <div class="svg-diagram-wrap">
+      <svg viewBox="0 0 780 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Decision flow diagram for a single telemetry record">
+        <defs>
+          <marker id="da" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#4361ee"/>
+          </marker>
+          <marker id="da-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#ef4444"/>
+          </marker>
+          <marker id="da-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#22c55e"/>
+          </marker>
+          <marker id="da-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#f59e0b"/>
+          </marker>
+        </defs>
 
-      <div class="lane">
-        <div class="lane-title">Visibility</div>
-        <div class="lane-row">
-          <span class="pill">GET /stats</span>
-          <span class="pill">GET /metrics</span>
-          <span class="pill">OTEL counters</span>
-          <span class="pill">Grafana/Prometheus</span>
-        </div>
+        <!-- ── Incoming record ── -->
+        <rect x="280" y="10" width="220" height="44" rx="8" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+        <text x="390" y="28" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="600" fill="#1e40af">Incoming Record</text>
+        <text x="390" y="46" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#60a5fa">log / trace / metric</text>
+
+        <!-- ── Step 1: Batch Guard ── -->
+        <line x1="390" y1="54" x2="390" y2="72" stroke="#4361ee" stroke-width="1.5" marker-end="url(#da)"/>
+        <rect x="270" y="74" width="240" height="44" rx="8" fill="#fff" stroke="#c7d2fe" stroke-width="1.5"/>
+        <text x="390" y="93" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#3730a3">① Batch Guard</text>
+        <text x="390" y="110" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#6366f1">batch size &gt; max_batch_size?</text>
+
+        <!-- ── Batch too big → DROP ── -->
+        <line x1="510" y1="96" x2="580" y2="96" stroke="#ef4444" stroke-width="1.5" marker-end="url(#da-red)"/>
+        <text x="542" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#ef4444">YES</text>
+        <rect x="582" y="78" width="140" height="36" rx="8" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
+        <text x="652" y="100" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="600" fill="#b91c1c">DROP (batch too big)</text>
+
+        <!-- ── Step 2: Policy Evaluator ── -->
+        <line x1="390" y1="118" x2="390" y2="138" stroke="#4361ee" stroke-width="1.5" marker-end="url(#da)"/>
+        <text x="350" y="133" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#4361ee">NO</text>
+        <rect x="270" y="140" width="240" height="44" rx="8" fill="#fff" stroke="#c7d2fe" stroke-width="1.5"/>
+        <text x="390" y="159" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#3730a3">② Policy Evaluator</text>
+        <text x="390" y="176" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#6366f1">evaluate(context, policy)</text>
+
+        <!-- ── Evaluate error path ── -->
+        <line x1="510" y1="162" x2="580" y2="162" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#da-amber)"/>
+        <text x="542" y="156" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#f59e0b">error</text>
+        <rect x="582" y="144" width="140" height="36" rx="8" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5"/>
+        <text x="652" y="159" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="600" fill="#92400e">fail_open → KEEP</text>
+        <text x="652" y="174" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#92400e">fail_closed → DROP</text>
+
+        <!-- ── Step 3: Decision Engine ── -->
+        <line x1="390" y1="184" x2="390" y2="204" stroke="#4361ee" stroke-width="1.5" marker-end="url(#da)"/>
+        <rect x="270" y="206" width="240" height="44" rx="8" fill="#fff" stroke="#c7d2fe" stroke-width="1.5"/>
+        <text x="390" y="225" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#3730a3">③ Decision Engine</text>
+        <text x="390" y="242" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#6366f1">apply verdict from policy</text>
+
+        <!-- ── Three outcomes ── -->
+        <!-- ALLOW -->
+        <line x1="390" y1="250" x2="390" y2="278" stroke="#22c55e" stroke-width="1.5" marker-end="url(#da-green)"/>
+        <text x="350" y="269" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#22c55e">allowed</text>
+        <rect x="278" y="280" width="224" height="36" rx="8" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+        <text x="390" y="302" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#15803d">PASS → Exporter</text>
+
+        <!-- SHADOW (branch right from Decision) -->
+        <line x1="510" y1="228" x2="580" y2="228" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#da)"/>
+        <text x="542" y="222" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#8b5cf6">shadow</text>
+        <rect x="582" y="210" width="140" height="36" rx="8" fill="#ede9fe" stroke="#c4b5fd" stroke-width="1.5"/>
+        <text x="652" y="225" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="600" fill="#6d28d9">COUNT + PASS</text>
+        <text x="652" y="241" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#6d28d9">shadow_total++</text>
+
+        <!-- DENY (branch left from Decision) -->
+        <line x1="270" y1="228" x2="200" y2="228" stroke="#ef4444" stroke-width="1.5" marker-end="url(#da-red)"/>
+        <text x="238" y="222" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#ef4444">denied</text>
+        <rect x="10" y="210" width="188" height="36" rx="8" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
+        <text x="104" y="225" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="600" fill="#b91c1c">DROP</text>
+        <text x="104" y="241" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#b91c1c">denied_total++</text>
+
+        <!-- Metrics footer label -->
+        <rect x="10" y="322" width="760" height="14" rx="4" fill="#e0e7ff"/>
+        <text x="390" y="333" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="600" fill="#4338ca">Every path emits OTEL counters → visible in Prometheus / Grafana in real time</text>
+      </svg>
+      <p class="svg-caption">Decision latency is sub-millisecond. All three paths emit distinct counters so you can measure exactly what the policy is doing.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 3 — CONTROL PLANE / OPERATOR LOOP
+  ═══════════════════════════════════════════════════════════ -->
+  <section class="content-wide" style="padding-top:0;">
+    <h2>3. The Operator Control Loop</h2>
+    <p class="section-intro">The processor is not a black box. Operators can inspect, reload, and iterate on policies at runtime — no restarts, no downtime.</p>
+
+    <div class="cp-flow">
+      <div class="cp-node">
+        <div class="cp-icon">📄</div>
+        <h4>Policy Source</h4>
+        <p><code>policy_file</code> or <code>policies_inline</code></p>
+      </div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">
+        <div class="cp-icon">👁</div>
+        <h4>File Watcher</h4>
+        <p><code>watch_policies: true</code><br>fsnotify + poll fallback</p>
+      </div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">
+        <div class="cp-icon">⚡</div>
+        <h4>Hot Reload</h4>
+        <p><code>engine.Reload()</code> or <code>POST /reload</code></p>
+      </div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">
+        <div class="cp-icon">📊</div>
+        <h4>Metrics Feedback</h4>
+        <p><code>GET /stats</code> · <code>GET /metrics</code><br>Prometheus / Grafana</p>
+      </div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">
+        <div class="cp-icon">🔁</div>
+        <h4>Operator Tunes</h4>
+        <p>Adjust rates, switch shadow → enforce, repeat</p>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:1.5rem;">
+      <div class="card" style="border-top:3px solid #4361ee;">
+        <h4>Policy Sources</h4>
+        <p>Load policies from a file path (<code>policy_file</code>) or embed them directly in collector YAML (<code>policies_inline</code>) — Helm and ConfigMap friendly.</p>
+      </div>
+      <div class="card" style="border-top:3px solid #f59e0b;">
+        <h4>Live Reload</h4>
+        <p>Change a policy file on disk and the processor picks it up automatically via <code>watch_policies</code>. Or trigger a manual refresh with <code>POST /reload</code>.</p>
+      </div>
+      <div class="card" style="border-top:3px solid #22c55e;">
+        <h4>Visibility Loop</h4>
+        <p>Every decision emits OTEL counters and is exposed at <code>/metrics</code>. The <code>/stats</code> endpoint shows live totals without needing Prometheus.</p>
       </div>
     </div>
   </section>
 
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 4 — DECISION PSEUDOCODE (stylized)
+  ═══════════════════════════════════════════════════════════ -->
   <section class="content">
-    <h2>3) Decision Logic (easy mental model)</h2>
+    <h2>4. Decision Logic at a Glance</h2>
+    <p class="section-intro">The exact evaluation order for every record in every batch — readable in plain English.</p>
+
     <pre><code>for each record in batch:
-  if max_batch_size exceeded:
-    drop(reason=batch_size_exceeded)
-    continue
 
-  decision = evaluate(policy)
+  ① if len(batch) > max_batch_size:
+      drop(reason = "batch_too_large")
+      batch_exceeded_total++
+      continue
 
-  if evaluate error:
-    if fail_open: keep
-    else: drop(reason=error)
-    continue
+  ② decision = policy_engine.evaluate(context)
 
-  if decision.shadow_mode:
-    keep and count as shadow
-  else if decision.allowed:
-    keep and count as allowed
-  else:
-    drop(reason=rate_limited)</code></pre>
+  ③ if evaluate_error:
+      if fail_open:  keep(record)      // default — safe
+      else:          drop(record)      // strict mode
+      evaluate_errors_total++
+      continue
+
+  ④ if decision == shadow:
+      keep(record)
+      shadow_total++                   // counted but not enforced
+
+  ⑤ elif decision == allowed:
+      keep(record)
+      allowed_total++
+
+  ⑥ else:   // denied
+      drop(record)
+      denied_total++</code></pre>
+
+    <div class="callout callout-tip">
+      <strong>Start with shadow mode.</strong>
+      Set <code>action: shadow_only</code> on any new policy so you can observe <code>shadow_total</code> trends in Grafana before committing to enforcement. Then flip to enforce — no redeploy.
+    </div>
 
     <div class="callout">
-      Next: open <a href="change-impact.html">Change Impact</a> to see business and operational outcomes mapped to each enhancement.
+      Next: <a href="change-impact.html">Change Impact</a> maps each feature to the business and operational outcome it delivers.
     </div>
   </section>
 
-  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Behavior Diagrams</span></div></footer>
+  <footer class="footer">
+    <div class="footer-inner">
+      <ul class="footer-links">
+        <li><a href="index.html">Overview</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+        <li><a href="change-impact.html">Change Impact</a></li>
+        <li><a href="policies.html">Policies</a></li>
+      </ul>
+      <span>OTEL Rate Limiter Docs · Behavior Diagrams</span>
+    </div>
+  </footer>
+
   <script src="js/nav.js"></script>
 </body>
 </html>

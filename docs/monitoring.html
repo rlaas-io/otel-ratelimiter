@@ -4,65 +4,189 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Monitoring - OTEL Rate Limiter</title>
-  <meta name="description" content="Metrics, Prometheus, and alerting guidance for OTEL rate limiter." />
+  <meta name="description" content="Complete observability guide for the OTEL Rate Limiter — metrics, Prometheus, PromQL, and alerting." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 </head>
 <body>
-  <nav class="nav"><div class="nav-inner">
-    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
-    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-    <ul class="nav-links">
-      <li><a href="index.html">Overview</a></li>
-      <li><a href="getting-started.html">Getting Started</a></li>
-      <li><a href="configuration.html">Configuration</a></li>
-      <li><a href="policies.html">Policies</a></li>
-      <li><a href="behavior-diagrams.html">Diagrams</a></li>
-      <li><a href="admin-api.html">Admin API</a></li>
-      <li><a href="monitoring.html" class="active">Monitoring</a></li>
-      <li><a href="examples.html" class="nav-cta">Examples</a></li>
-    </ul>
-  </div></nav>
+  <nav class="nav"><div class="nav-inner"></div></nav>
+
+  <header class="hero" style="padding:4rem 2rem 3.4rem;">
+    <h1>Monitoring &amp; Alerting</h1>
+    <p class="subtitle">Seven counters cover every decision path. Use both the OTEL metrics endpoint and the Admin API for complete operational visibility — no blind spots.</p>
+  </header>
 
   <section class="content">
-    <h1>Monitoring and Alerting</h1>
-    <p class="section-intro">Use both collector OTel metrics and admin endpoint metrics for complete operational visibility.</p>
+    <h2>What You Can See</h2>
+    <p class="section-intro">Every record processed by the rate limiter increments exactly one counter per path. Together they give a complete picture of what entered, what was approved, and what was rejected — broken down by signal type.</p>
 
-    <h2>Primary metric families</h2>
-    <ul>
-      <li><code>ratelimiter_records_received_total</code></li>
-      <li><code>ratelimiter_records_dropped_total</code></li>
-      <li><code>ratelimiter_records_allowed_total</code></li>
-      <li><code>ratelimiter_records_denied_total</code></li>
-      <li><code>ratelimiter_records_shadow_total</code></li>
-      <li><code>ratelimiter_evaluate_errors_total</code></li>
-      <li><code>ratelimiter_policy_reloads_total</code></li>
-    </ul>
+    <div class="metrics-grid">
+      <div class="metric-card blue">
+        <div class="metric-name">ratelimiter_records_received_total</div>
+        <p class="metric-desc">Total records that entered the processor. The baseline for computing all ratios.</p>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-name">ratelimiter_records_allowed_total</div>
+        <p class="metric-desc">Records approved by policy and forwarded to the exporter.</p>
+      </div>
+      <div class="metric-card red">
+        <div class="metric-name">ratelimiter_records_dropped_total</div>
+        <p class="metric-desc">Records dropped for any reason — rate limit exceeded, batch cap, or evaluation error in fail-closed mode.</p>
+      </div>
+      <div class="metric-card red">
+        <div class="metric-name">ratelimiter_records_denied_total</div>
+        <p class="metric-desc">Records explicitly denied by a policy rule (excludes batch-cap drops).</p>
+      </div>
+      <div class="metric-card purple">
+        <div class="metric-name">ratelimiter_records_shadow_total</div>
+        <p class="metric-desc">Records that <em>would</em> have been denied but were forwarded because the policy is in <code>shadow_only</code> mode. Use to validate new policies safely.</p>
+      </div>
+      <div class="metric-card amber">
+        <div class="metric-name">ratelimiter_evaluate_errors_total</div>
+        <p class="metric-desc">Policy evaluation errors. Non-zero means the engine had trouble evaluating — investigate immediately.</p>
+      </div>
+      <div class="metric-card">
+        <div class="metric-name">ratelimiter_policy_reloads_total</div>
+        <p class="metric-desc">Number of successful policy reloads. Unexpected spikes may indicate a config management issue.</p>
+      </div>
+    </div>
 
-    <h2>Prometheus scrape</h2>
+    <blockquote>
+      All counters carry a <code>signal</code> label (<code>logs</code>, <code>traces</code>, <code>metrics</code>) so you can monitor each telemetry type independently.
+    </blockquote>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       METRICS FLOW DIAGRAM
+  ═══════════════════════════════════════════════════════════ -->
+  <section class="content-wide" style="padding-top:0;">
+    <h2>How Metrics Flow to Your Dashboard</h2>
+
+    <div class="cp-flow">
+      <div class="cp-node">
+        <div class="cp-icon">⚙️</div>
+        <h4>Processor</h4>
+        <p>Emits OTEL counters on every decision</p>
+      </div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">
+        <div class="cp-icon">📡</div>
+        <h4>Admin API</h4>
+        <p><code>GET /metrics</code><br>Prometheus-format scrape</p>
+      </div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">
+        <div class="cp-icon">🗄️</div>
+        <h4>Prometheus</h4>
+        <p>Scrapes <code>otel-collector:8090/metrics</code> on interval</p>
+      </div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">
+        <div class="cp-icon">📈</div>
+        <h4>Grafana</h4>
+        <p>Dashboards + alert rules over PromQL</p>
+      </div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">
+        <div class="cp-icon">🔔</div>
+        <h4>Alertmanager</h4>
+        <p>Pages on-call when thresholds breach</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="content">
+    <h2>Prometheus Scrape Config</h2>
     <pre><code>scrape_configs:
   - job_name: otel-ratelimiter
     metrics_path: /metrics
     static_configs:
       - targets: ["otel-collector:8090"]</code></pre>
 
-    <h2>Useful PromQL</h2>
-    <pre><code>sum by (signal) (rate(ratelimiter_records_dropped_total[5m]))
-sum by (signal) (rate(ratelimiter_records_allowed_total[5m]))
-sum by (signal) (rate(ratelimiter_evaluate_errors_total[5m]))
-sum by (signal) (increase(ratelimiter_policy_reloads_total[1h]))</code></pre>
+    <h2>Useful PromQL Queries</h2>
 
-    <h2>Alert starters</h2>
-    <ul>
-      <li>Evaluate errors greater than 0 for 5m</li>
-      <li>Drop ratio greater than 20 percent for 10m</li>
-      <li>Unexpected reload spikes (>10 in 10m)</li>
+    <h4>Drop rate by signal (per minute)</h4>
+    <pre><code>sum by (signal) (rate(ratelimiter_records_dropped_total[5m]))</code></pre>
+
+    <h4>Allow rate by signal (per minute)</h4>
+    <pre><code>sum by (signal) (rate(ratelimiter_records_allowed_total[5m]))</code></pre>
+
+    <h4>Drop ratio — percentage of traffic being dropped</h4>
+    <pre><code>sum by (signal) (rate(ratelimiter_records_dropped_total[5m]))
+/
+sum by (signal) (rate(ratelimiter_records_received_total[5m]))</code></pre>
+
+    <h4>Evaluation error rate (should be zero)</h4>
+    <pre><code>sum by (signal) (rate(ratelimiter_evaluate_errors_total[5m]))</code></pre>
+
+    <h4>Shadow mode — what would be denied (policy dry-run)</h4>
+    <pre><code>sum by (signal) (rate(ratelimiter_records_shadow_total[5m]))</code></pre>
+
+    <h4>Policy reload count in the last hour</h4>
+    <pre><code>sum by (signal) (increase(ratelimiter_policy_reloads_total[1h]))</code></pre>
+
+    <h2>Alert Rules</h2>
+    <p>Start with these three alerts. Tune thresholds for your traffic profile.</p>
+
+    <ul class="alert-list">
+      <li>
+        <span class="alert-icon">🔴</span>
+        <div>
+          <strong>Evaluation errors &gt; 0 for 5 minutes</strong><br>
+          <span style="font-size:.85rem;color:var(--text-secondary);">The policy engine is failing to evaluate records. Check policy file validity and RLAAS connectivity. Fire immediately.</span>
+        </div>
+      </li>
+      <li>
+        <span class="alert-icon">🟡</span>
+        <div>
+          <strong>Drop ratio &gt; 20% for 10 minutes</strong><br>
+          <span style="font-size:.85rem;color:var(--text-secondary);">More than one in five records is being dropped. May be intentional (tight budget) or a sign that a noisy service needs its own policy.</span>
+        </div>
+      </li>
+      <li>
+        <span class="alert-icon">🟡</span>
+        <div>
+          <strong>Policy reloads &gt; 10 in 10 minutes</strong><br>
+          <span style="font-size:.85rem;color:var(--text-secondary);">Unexpected reload spikes usually indicate a config management loop — a CI system or operator script repeatedly writing the policy file.</span>
+        </div>
+      </li>
     </ul>
+
+    <h2>Quick Health Check via Admin API</h2>
+    <p>No Prometheus? Use the Admin API for an instant sanity check:</p>
+    <pre><code># Is the processor alive?
+curl -s http://otel-collector:8090/health
+
+# What are the live totals?
+curl -s http://otel-collector:8090/stats | jq .
+
+# What policy is currently active?
+curl -s http://otel-collector:8090/config | jq .</code></pre>
+
+    <div class="callout callout-tip">
+      <strong>Tip:</strong> <code>GET /stats</code> returns cumulative counters since startup — useful for spotting absolute totals during an incident when Prometheus lag matters.
+    </div>
+
+    <div class="callout">
+      See all Admin API endpoints in detail on the <a href="admin-api.html">Admin API</a> page.
+    </div>
   </section>
 
-  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Monitoring</span></div></footer>
+  <footer class="footer">
+    <div class="footer-inner">
+      <ul class="footer-links">
+        <li><a href="index.html">Overview</a></li>
+        <li><a href="admin-api.html">Admin API</a></li>
+        <li><a href="behavior-diagrams.html">Behavior Diagrams</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+      </ul>
+      <span>OTEL Rate Limiter Docs · Monitoring</span>
+    </div>
+  </footer>
+
   <script src="js/nav.js"></script>
 </body>
 </html>
