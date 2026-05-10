@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture - OTEL Rate Limiter</title>
+  <meta name="description" content="Production architecture for OTEL rate limiter: data path, control path, and operations loop." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner"></div></nav>
+
+  <header class="hero" style="padding: 4rem 2rem 3.4rem;">
+    <h1>OTEL Rate Limiter Architecture</h1>
+    <p class="subtitle">Data plane, policy plane, and operations plane in one view.</p>
+  </header>
+
+  <section class="content-wide">
+    <h2>System Diagram</h2>
+    <div class="arch-board">
+      <div class="arch-col">
+        <h4>Telemetry Sources</h4>
+        <div class="arch-box">Apps / SDKs</div>
+        <div class="arch-box">Sidecars / Agents</div>
+        <div class="arch-box">OTLP Collectors</div>
+      </div>
+      <div class="arch-arrow">-&gt;</div>
+      <div class="arch-col">
+        <h4>Rate Limiter Processor</h4>
+        <div class="arch-box">Context Builder</div>
+        <div class="arch-box">Policy Evaluator (RLAAS)</div>
+        <div class="arch-box">Decision Engine
+          <small>allow / drop / shadow</small>
+        </div>
+        <div class="arch-box">Batch Guard
+          <small>max_batch_size</small>
+        </div>
+      </div>
+      <div class="arch-arrow">-&gt;</div>
+      <div class="arch-col">
+        <h4>Exporters</h4>
+        <div class="arch-box">OTLP Backend</div>
+        <div class="arch-box">Observability Vendor</div>
+        <div class="arch-box">Storage / SIEM</div>
+      </div>
+    </div>
+
+    <div class="arch-control">
+      <h3>Control and Operations Loop</h3>
+      <div class="arch-row">
+        <span class="pill">policy_file / policies_inline</span>
+        <span class="arrow-right">-&gt;</span>
+        <span class="pill">watch_policies / POST /reload</span>
+        <span class="arrow-right">-&gt;</span>
+        <span class="pill">engine.Reload()</span>
+        <span class="arrow-right">-&gt;</span>
+        <span class="pill">stats + metrics feedback</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="content">
+    <h2>Behavior guarantees</h2>
+    <ul>
+      <li>Fail-open mode prevents telemetry loss when evaluation fails.</li>
+      <li>Fail-closed mode enforces strict control for compliance-sensitive paths.</li>
+      <li>Shadow mode validates policy safety before hard enforcement.</li>
+      <li>Admin API exposes runtime state for operations and incident response.</li>
+    </ul>
+
+    <h2>Why this architecture is production-ready</h2>
+    <table>
+      <thead><tr><th>Concern</th><th>Mechanism</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Traffic spikes</td><td>Token bucket policy + batch cap</td><td>Protected backend ingestion</td></tr>
+        <tr><td>Policy rollout risk</td><td>Shadow mode + live reload</td><td>Safer change management</td></tr>
+        <tr><td>Operational visibility</td><td>Admin API + OTel/Prom metrics</td><td>Faster troubleshooting</td></tr>
+        <tr><td>Config flexibility</td><td>File or inline policies</td><td>Simpler platform integration</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Architecture</span></div></footer>
+  <script src="js/nav.js"></script>
+</body>
+</html>
