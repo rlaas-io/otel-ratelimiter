@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rlaas-io/rlaas/pkg/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/rlaas-io/rlaas/pkg/model"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -792,7 +792,8 @@ func TestIntegration_Engine_DefaultsNotOverridden(t *testing.T) {
 		Application: "default-app",
 		Environment: "default-env",
 	}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	// Request with all fields already populated — defaults should NOT overwrite.
 	req := model.RequestContext{
@@ -818,7 +819,8 @@ func TestIntegration_Engine_ZeroQuantityDefault(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "test-svc",
@@ -839,7 +841,8 @@ func TestIntegration_Engine_NegativeQuantityDefault(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "test-svc",

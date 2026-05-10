@@ -50,7 +50,7 @@ func TestConfig_Validate_Invalid(t *testing.T) {
 		{
 			name:    "missing policy file",
 			cfg:     Config{},
-			wantErr: "policy_file is required",
+			wantErr: "policy_file or policies_inline is required",
 		},
 		{
 			name: "negative cache TTL",

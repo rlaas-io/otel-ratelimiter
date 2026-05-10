@@ -5,6 +5,7 @@ package ratelimiterprocessor // import "github.com/rlaas-io/otel-ratelimiter"
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -17,7 +18,7 @@ import (
 
 var processorCapabilities = consumer.Capabilities{MutatesData: true}
 
-// NewFactory creates a new factory for the rate limiter processor.
+// NewFactory creates the rate limiter processor factory.
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,
@@ -30,10 +31,11 @@ func NewFactory() processor.Factory {
 
 func createDefaultConfig() component.Config {
 	return &Config{
-		PolicyFile: "",
-		FailOpen:   true,
-		CacheTTL:   30 * time.Second,
-		KeyPrefix:  "otel",
+		PolicyFile:    "",
+		FailOpen:      true,
+		CacheTTL:      30 * time.Second,
+		WatchInterval: 15 * time.Second,
+		KeyPrefix:     "otel",
 	}
 }
 
@@ -44,11 +46,19 @@ func createLogsProcessor(
 	nextConsumer consumer.Logs,
 ) (processor.Logs, error) {
 	oCfg := cfg.(*Config)
-	eng := newEngine(oCfg, set.TelemetrySettings.Logger)
+	eng, err := newEngine(oCfg, set.TelemetrySettings.Logger)
+	if err != nil {
+		return nil, fmt.Errorf("ratelimiter: create engine: %w", err)
+	}
+	tel, err := newProcessorTelemetry(set.TelemetrySettings.MeterProvider, "logs")
+	if err != nil {
+		return nil, fmt.Errorf("ratelimiter: create telemetry instruments: %w", err)
+	}
 	lp := &logsProcessor{
 		cfg:    oCfg,
 		logger: set.TelemetrySettings.Logger,
 		engine: eng,
+		tel:    tel,
 	}
 	return processorhelper.NewLogs(
 		ctx, set, cfg, nextConsumer, lp.processLogs,
@@ -65,11 +75,19 @@ func createTracesProcessor(
 	nextConsumer consumer.Traces,
 ) (processor.Traces, error) {
 	oCfg := cfg.(*Config)
-	eng := newEngine(oCfg, set.TelemetrySettings.Logger)
+	eng, err := newEngine(oCfg, set.TelemetrySettings.Logger)
+	if err != nil {
+		return nil, fmt.Errorf("ratelimiter: create engine: %w", err)
+	}
+	tel, err := newProcessorTelemetry(set.TelemetrySettings.MeterProvider, "traces")
+	if err != nil {
+		return nil, fmt.Errorf("ratelimiter: create telemetry instruments: %w", err)
+	}
 	tp := &tracesProcessor{
 		cfg:    oCfg,
 		logger: set.TelemetrySettings.Logger,
 		engine: eng,
+		tel:    tel,
 	}
 	return processorhelper.NewTraces(
 		ctx, set, cfg, nextConsumer, tp.processTraces,
@@ -86,11 +104,19 @@ func createMetricsProcessor(
 	nextConsumer consumer.Metrics,
 ) (processor.Metrics, error) {
 	oCfg := cfg.(*Config)
-	eng := newEngine(oCfg, set.TelemetrySettings.Logger)
+	eng, err := newEngine(oCfg, set.TelemetrySettings.Logger)
+	if err != nil {
+		return nil, fmt.Errorf("ratelimiter: create engine: %w", err)
+	}
+	tel, err := newProcessorTelemetry(set.TelemetrySettings.MeterProvider, "metrics")
+	if err != nil {
+		return nil, fmt.Errorf("ratelimiter: create telemetry instruments: %w", err)
+	}
 	mp := &metricsProcessor{
 		cfg:    oCfg,
 		logger: set.TelemetrySettings.Logger,
 		engine: eng,
+		tel:    tel,
 	}
 	return processorhelper.NewMetrics(
 		ctx, set, cfg, nextConsumer, mp.processMetrics,

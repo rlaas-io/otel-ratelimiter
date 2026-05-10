@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuration - OTEL Rate Limiter</title>
+  <meta name="description" content="Complete configuration reference for OTEL rate limiter processor." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
+    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <ul class="nav-links">
+      <li><a href="index.html">Overview</a></li>
+      <li><a href="getting-started.html">Getting Started</a></li>
+      <li><a href="configuration.html" class="active">Configuration</a></li>
+      <li><a href="policies.html">Policies</a></li>
+      <li><a href="admin-api.html">Admin API</a></li>
+      <li><a href="monitoring.html">Monitoring</a></li>
+      <li><a href="examples.html" class="nav-cta">Examples</a></li>
+    </ul>
+  </div></nav>
+
+  <section class="content">
+    <h1>Configuration Reference</h1>
+    <p class="section-intro">All fields supported by the current processor implementation.</p>
+
+    <pre><code>processors:
+  ratelimiter:
+    policy_file: /etc/otelcol/policies.json
+    # policies_inline: |
+    #   [...]
+    fail_open: true
+    cache_ttl: 30s
+    watch_policies: false
+    watch_interval: 15s
+    key_prefix: otel
+    org_id: ""
+    tenant_id: ""
+    application: ""
+    environment: ""
+    max_batch_size: 0
+    admin_addr: ""</code></pre>
+
+    <h2>Field Table</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>policy_file</code></td><td>string</td><td>empty</td><td>Path to policy json file</td></tr>
+        <tr><td><code>policies_inline</code></td><td>string</td><td>empty</td><td>Inline json policies</td></tr>
+        <tr><td><code>fail_open</code></td><td>bool</td><td>true</td><td>Allow when evaluation errors happen</td></tr>
+        <tr><td><code>cache_ttl</code></td><td>duration</td><td>30s</td><td>Policy cache ttl inside engine</td></tr>
+        <tr><td><code>watch_policies</code></td><td>bool</td><td>false</td><td>Enable live policy reload from file</td></tr>
+        <tr><td><code>watch_interval</code></td><td>duration</td><td>15s</td><td>Polling fallback interval</td></tr>
+        <tr><td><code>key_prefix</code></td><td>string</td><td>otel</td><td>Counter namespace</td></tr>
+        <tr><td><code>org_id</code></td><td>string</td><td>empty</td><td>Default context field</td></tr>
+        <tr><td><code>tenant_id</code></td><td>string</td><td>empty</td><td>Default context field</td></tr>
+        <tr><td><code>application</code></td><td>string</td><td>empty</td><td>Default context field</td></tr>
+        <tr><td><code>environment</code></td><td>string</td><td>empty</td><td>Default context field</td></tr>
+        <tr><td><code>max_batch_size</code></td><td>int</td><td>0</td><td>0 means unlimited</td></tr>
+        <tr><td><code>admin_addr</code></td><td>string</td><td>empty</td><td>Enable admin HTTP API</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Validation Rules</h2>
+    <ul>
+      <li>Exactly one of <code>policy_file</code> or <code>policies_inline</code> must be set.</li>
+      <li><code>cache_ttl</code>, <code>watch_interval</code>, and <code>max_batch_size</code> cannot be negative.</li>
+    </ul>
+  </section>
+
+  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Configuration</span></div></footer>
+  <script src="js/nav.js"></script>
+</body>
+</html>

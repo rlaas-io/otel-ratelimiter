@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitoring - OTEL Rate Limiter</title>
+  <meta name="description" content="Metrics, Prometheus, and alerting guidance for OTEL rate limiter." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
+    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <ul class="nav-links">
+      <li><a href="index.html">Overview</a></li>
+      <li><a href="getting-started.html">Getting Started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="policies.html">Policies</a></li>
+      <li><a href="admin-api.html">Admin API</a></li>
+      <li><a href="monitoring.html" class="active">Monitoring</a></li>
+      <li><a href="examples.html" class="nav-cta">Examples</a></li>
+    </ul>
+  </div></nav>
+
+  <section class="content">
+    <h1>Monitoring and Alerting</h1>
+    <p class="section-intro">Use both collector OTel metrics and admin endpoint metrics for complete operational visibility.</p>
+
+    <h2>Primary metric families</h2>
+    <ul>
+      <li><code>ratelimiter_records_received_total</code></li>
+      <li><code>ratelimiter_records_dropped_total</code></li>
+      <li><code>ratelimiter_records_allowed_total</code></li>
+      <li><code>ratelimiter_records_denied_total</code></li>
+      <li><code>ratelimiter_records_shadow_total</code></li>
+      <li><code>ratelimiter_evaluate_errors_total</code></li>
+      <li><code>ratelimiter_policy_reloads_total</code></li>
+    </ul>
+
+    <h2>Prometheus scrape</h2>
+    <pre><code>scrape_configs:
+  - job_name: otel-ratelimiter
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["otel-collector:8090"]</code></pre>
+
+    <h2>Useful PromQL</h2>
+    <pre><code>sum by (signal) (rate(ratelimiter_records_dropped_total[5m]))
+sum by (signal) (rate(ratelimiter_records_allowed_total[5m]))
+sum by (signal) (rate(ratelimiter_evaluate_errors_total[5m]))
+sum by (signal) (increase(ratelimiter_policy_reloads_total[1h]))</code></pre>
+
+    <h2>Alert starters</h2>
+    <ul>
+      <li>Evaluate errors greater than 0 for 5m</li>
+      <li>Drop ratio greater than 20 percent for 10m</li>
+      <li>Unexpected reload spikes (>10 in 10m)</li>
+    </ul>
+  </section>
+
+  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Monitoring</span></div></footer>
+  <script src="js/nav.js"></script>
+</body>
+</html>

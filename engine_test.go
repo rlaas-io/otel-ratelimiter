@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/rlaas-io/rlaas/pkg/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/rlaas-io/rlaas/pkg/model"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -16,7 +16,8 @@ func TestEngine_Evaluate_Allow(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "web-api",
@@ -37,7 +38,8 @@ func TestEngine_Evaluate_Deny(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "web-api",
@@ -65,7 +67,8 @@ func TestEngine_Evaluate_ShadowMode(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "web-api",
@@ -97,7 +100,8 @@ func TestEngine_Evaluate_DefaultFields(t *testing.T) {
 		Application: "my-app",
 		Environment: "staging",
 	}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	// Request with empty fields — defaults should be filled.
 	req := model.RequestContext{
@@ -117,7 +121,8 @@ func TestEngine_Stats(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "web-api",
@@ -130,7 +135,7 @@ func TestEngine_Stats(t *testing.T) {
 		eng.evaluate(context.Background(), req)
 	}
 
-	allowed, denied, _, _ := eng.Stats()
+	allowed, denied, _, _, _ := eng.Stats()
 	assert.Equal(t, int64(2), allowed)
 	assert.Equal(t, int64(3), denied)
 }
