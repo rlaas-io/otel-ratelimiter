@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   RLAAS Admin Console — app.js
+   OTEL Rate Limiter Admin — app.js
    ══════════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -40,13 +40,13 @@ function getHeaders() {
   return t ? { 'Authorization': 'Bearer ' + t } : {};
 }
 function saveSettings() {
-  sessionStorage.setItem('rlaas-base',  $('baseURL').value);
-  sessionStorage.setItem('rlaas-token', $('authToken').value);
+  sessionStorage.setItem('otel-rl-base',  $('baseURL').value);
+  sessionStorage.setItem('otel-rl-token', $('authToken').value);
 }
 function loadSettings() {
-  var base = sessionStorage.getItem('rlaas-base') || window.location.origin;
+  var base = sessionStorage.getItem('otel-rl-base') || window.location.origin;
   $('baseURL').value  = base;
-  var tok = sessionStorage.getItem('rlaas-token') || '';
+  var tok = sessionStorage.getItem('otel-rl-token') || '';
   $('authToken').value = tok;
 }
 

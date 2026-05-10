@@ -106,6 +106,124 @@ Receivers ──> [ratelimiter processor] ──> Exporters
 
 ---
 
+## Run Locally in 3 Steps
+
+No Docker, no Kubernetes, no cloud account. Just Go.
+
+### Prerequisites
+
+| Tool | Version | Check |
+|---|---|---|
+| Go | 1.22+ | `go version` |
+| Git | any | `git --version` |
+
+### Step 1 — Build the collector binary
+
+```bash
+# From the repo root
+cd otelcol-ratelimiter
+go build -o otelcol-ratelimiter.exe .   # Windows
+# go build -o otelcol-ratelimiter .     # macOS / Linux
+cd ..
+```
+
+> **First run only.** After a clean clone the `otelcol-ratelimiter/` directory just has Go source files — no binary yet. The build downloads OTEL dependencies (~40 MB) and compiles in ~60 s.
+
+### Step 2 — Start the collector with the Admin API
+
+The repo ships a ready-made local config (`local-collector-config.yaml`) that points at the example policy file and enables the admin API on port 8090.
+
+```bash
+# macOS / Linux
+./otelcol-ratelimiter/otelcol-ratelimiter --config local-collector-config.yaml
+
+# Windows PowerShell
+& .\otelcol-ratelimiter\otelcol-ratelimiter.exe --config local-collector-config.yaml
+```
+
+You should see lines like:
+
+```
+info  RLAAS admin HTTP server started  addr: ":8090"  ui: "http://:8090/ui/"
+info  service/service.go  Everything is ready. Begin running and processing data.
+```
+
+### Step 3 — Open the Admin UI
+
+```
+http://localhost:8090/ui/
+```
+
+The browser dashboard auto-detects the API endpoint — no configuration needed.
+It shows 5 tabs: **Overview · Live Stats · Configuration · Policies · Actions**
+
+#### Verify all endpoints are responding
+
+```bash
+curl http://localhost:8090/health          # {"status":"ok","uptime_seconds":N}
+curl http://localhost:8090/stats           # per-signal counters (logs/traces/metrics)
+curl http://localhost:8090/config          # all 23 config fields including org_id, service_expr
+curl http://localhost:8090/config/policies # active policy JSON + SHA-256 checksum
+curl http://localhost:8090/metrics         # Prometheus text format
+```
+
+#### Send test telemetry so counters light up
+
+```bash
+# Install the generator (one-time)
+go install github.com/open-telemetry/opentelemetry-collector-contrib/cmd/telemetrygen@latest
+
+# Send logs, traces, metrics (each in a separate terminal or background)
+telemetrygen logs    --otlp-insecure --duration 10s --rate 200
+telemetrygen traces  --otlp-insecure --duration 10s --rate 200
+telemetrygen metrics --otlp-insecure --duration 10s --rate 200
+```
+
+Refresh the Admin UI — the Stats tab will show received/allowed/denied counters climbing.
+The example policies allow 5 000 logs/min, so at 200 req/s you'll see drops appear within a few seconds.
+
+#### Force a policy reload (without restart)
+
+```bash
+curl -s -X POST http://localhost:8090/reload
+# {"status":"reloaded","engines":3}
+```
+
+Or use the **Actions** tab in the Admin UI.
+
+#### Stop the collector
+
+```
+Ctrl+C   (in the terminal where the collector is running)
+```
+
+Or from another terminal:
+
+```bash
+# macOS / Linux
+pkill -f otelcol-ratelimiter
+
+# Windows PowerShell
+Stop-Process -Name otelcol-ratelimiter -Force
+
+# Windows cmd
+taskkill /F /IM otelcol-ratelimiter.exe
+```
+
+---
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `listen tcp :8090: bind: address already in use` | Change `admin_addr` in `local-collector-config.yaml` to e.g. `":8091"` |
+| `listen tcp :4317: bind: address already in use` | Another collector is running. Kill it first. |
+| `policy_file: open ./example/policies.json: no such file` | Run the binary **from the repo root**, not from inside `otelcol-ratelimiter/` |
+| Admin UI shows "Offline" | The base URL in the sidebar input must match the running port — default is `http://localhost:8090` |
+| `go: updates to go.mod needed` | Run `cd otelcol-ratelimiter && go mod tidy` then rebuild |
+
+---
+
 ## Installation
 
 ### Option 1: Build with OpenTelemetry Collector Builder (ocb) — Recommended
@@ -410,6 +528,9 @@ After a successful build, the binary is at `./otelcol-ratelimiter/otelcol-rateli
 The collector starts listening on:
 - **gRPC** — `0.0.0.0:4317`
 - **HTTP** — `0.0.0.0:4318`
+- **Admin UI** — `http://localhost:8090/ui/`  ← open this in a browser
+
+> `local-collector-config.yaml` already has `admin_addr: ":8090"` enabled. The UI auto-detects the API endpoint — just open the URL above.
 
 ---
 
