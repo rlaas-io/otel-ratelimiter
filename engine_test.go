@@ -2,6 +2,8 @@ package ratelimiterprocessor
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/rlaas-io/rlaas/pkg/model"
@@ -173,4 +175,39 @@ func TestShouldKeep(t *testing.T) {
 			assert.Equal(t, tt.want, shouldKeep(tt.decision))
 		})
 	}
+}
+
+func TestEngine_ReloadIncrementsStats(t *testing.T) {
+	policyFile := createTempPolicyFile(t, []model.Policy{
+		tokenBucketPolicy("p1", "reload", "log", 10, 10, model.ActionDrop),
+	})
+
+	eng, err := newEngine(&Config{PolicyFile: policyFile, FailOpen: true}, zaptest.NewLogger(t))
+	require.NoError(t, err)
+
+	_, _, _, _, reloads := eng.Stats()
+	assert.Equal(t, int64(0), reloads)
+
+	eng.Reload()
+
+	_, _, _, _, reloads = eng.Stats()
+	assert.Equal(t, int64(1), reloads)
+}
+
+func TestEngine_InlinePoliciesTempFileLifecycle(t *testing.T) {
+	policies := []model.Policy{tokenBucketPolicy("p-inline", "inline", "log", 10, 10, model.ActionDrop)}
+	data, err := json.Marshal(policies)
+	require.NoError(t, err)
+
+	eng, err := newEngine(&Config{PoliciesInline: string(data), FailOpen: true}, zaptest.NewLogger(t))
+	require.NoError(t, err)
+	require.NotEmpty(t, eng.tempFile)
+
+	_, err = os.Stat(eng.tempFile)
+	require.NoError(t, err)
+
+	eng.close()
+
+	_, err = os.Stat(eng.tempFile)
+	assert.True(t, os.IsNotExist(err), "temp file should be removed on close")
 }

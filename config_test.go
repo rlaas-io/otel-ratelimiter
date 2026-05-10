@@ -60,6 +60,30 @@ func TestConfig_Validate_Invalid(t *testing.T) {
 			},
 			wantErr: "cache_ttl must not be negative",
 		},
+		{
+			name: "mutually exclusive policy fields",
+			cfg: Config{
+				PolicyFile:     "/path/to/policies.json",
+				PoliciesInline: "[]",
+			},
+			wantErr: "policy_file and policies_inline are mutually exclusive",
+		},
+		{
+			name: "negative watch interval",
+			cfg: Config{
+				PolicyFile:    "/path/to/policies.json",
+				WatchInterval: -1,
+			},
+			wantErr: "watch_interval must not be negative",
+		},
+		{
+			name: "negative max batch size",
+			cfg: Config{
+				PolicyFile:   "/path/to/policies.json",
+				MaxBatchSize: -1,
+			},
+			wantErr: "max_batch_size must not be negative",
+		},
 	}
 
 	for _, tt := range tests {
