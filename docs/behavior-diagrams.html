@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Behavior Diagrams - OTEL Rate Limiter</title>
+  <meta name="description" content="Visual diagrams explaining current telemetry flow and behavior after OTEL rate limiter enhancements." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
+    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <ul class="nav-links">
+      <li><a href="index.html">Overview</a></li>
+      <li><a href="getting-started.html">Getting Started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="policies.html">Policies</a></li>
+      <li><a href="behavior-diagrams.html" class="active">Diagrams</a></li>
+      <li><a href="admin-api.html">Admin API</a></li>
+      <li><a href="monitoring.html">Monitoring</a></li>
+      <li><a href="examples.html" class="nav-cta">Examples</a></li>
+    </ul>
+  </div></nav>
+
+  <header class="hero" style="padding: 4rem 1.2rem 3.4rem;">
+    <h1>Current Behavior vs Enhanced Behavior</h1>
+    <p class="subtitle">Understand exactly what changed in runtime flow, control points, and operator experience.</p>
+  </header>
+
+  <section class="content-wide">
+    <h2>1) Data Path Comparison</h2>
+    <p class="section-intro">Left is a typical collector pipeline without advanced controls. Right shows how the enhanced processor adds guardrails and operations hooks.</p>
+
+    <div class="compare-grid">
+      <article class="diagram-card before">
+        <h3>Before (basic behavior)</h3>
+        <div class="flow-block">OTLP Receiver</div>
+        <div class="flow-arrow">down</div>
+        <div class="flow-block">Collector Pipeline</div>
+        <div class="flow-arrow">down</div>
+        <div class="flow-block">Exporter</div>
+        <div class="flow-note">Outcome: burst traffic can pass through with limited operational controls.</div>
+      </article>
+
+      <article class="diagram-card after">
+        <h3>After (enhanced behavior)</h3>
+        <div class="flow-block">OTLP Receiver</div>
+        <div class="flow-arrow">down</div>
+        <div class="flow-block">OTEL Rate Limiter Processor</div>
+        <div class="flow-subgrid">
+          <span class="pill">Policy evaluation</span>
+          <span class="pill">Max batch cap</span>
+          <span class="pill">Shadow mode</span>
+          <span class="pill">Fail open/closed</span>
+        </div>
+        <div class="flow-arrow">down</div>
+        <div class="flow-block">Exporter</div>
+        <div class="flow-note">Outcome: controlled throughput, reduced backend stress, and predictable cost.</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="content-wide">
+    <h2>2) Control Plane and Operator Loop</h2>
+    <div class="diagram-stack">
+      <div class="lane">
+        <div class="lane-title">Policy source</div>
+        <div class="lane-row">
+          <span class="pill">policy_file</span>
+          <span class="arrow-right">-></span>
+          <span class="pill">watch_policies</span>
+          <span class="arrow-right">-></span>
+          <span class="pill">engine.Reload()</span>
+        </div>
+      </div>
+
+      <div class="lane">
+        <div class="lane-title">Runtime controls</div>
+        <div class="lane-row">
+          <span class="pill">POST /reload</span>
+          <span class="arrow-right">-></span>
+          <span class="pill">all engines refresh</span>
+          <span class="arrow-right">-></span>
+          <span class="pill">reload counter++</span>
+        </div>
+      </div>
+
+      <div class="lane">
+        <div class="lane-title">Visibility</div>
+        <div class="lane-row">
+          <span class="pill">GET /stats</span>
+          <span class="pill">GET /metrics</span>
+          <span class="pill">OTEL counters</span>
+          <span class="pill">Grafana/Prometheus</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content">
+    <h2>3) Decision Logic (easy mental model)</h2>
+    <pre><code>for each record in batch:
+  if max_batch_size exceeded:
+    drop(reason=batch_size_exceeded)
+    continue
+
+  decision = evaluate(policy)
+
+  if evaluate error:
+    if fail_open: keep
+    else: drop(reason=error)
+    continue
+
+  if decision.shadow_mode:
+    keep and count as shadow
+  else if decision.allowed:
+    keep and count as allowed
+  else:
+    drop(reason=rate_limited)</code></pre>
+
+    <div class="callout">
+      Next: open <a href="change-impact.html">Change Impact</a> to see business and operational outcomes mapped to each enhancement.
+    </div>
+  </section>
+
+  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Behavior Diagrams</span></div></footer>
+  <script src="js/nav.js"></script>
+</body>
+</html>

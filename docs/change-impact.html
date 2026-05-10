@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Change Impact - OTEL Rate Limiter</title>
+  <meta name="description" content="Detailed impact map of enhancements in OTEL rate limiter and what each change delivers." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
+    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <ul class="nav-links">
+      <li><a href="index.html">Overview</a></li>
+      <li><a href="getting-started.html">Getting Started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="policies.html">Policies</a></li>
+      <li><a href="behavior-diagrams.html">Diagrams</a></li>
+      <li><a href="change-impact.html" class="active">Impact</a></li>
+      <li><a href="admin-api.html">Admin API</a></li>
+      <li><a href="monitoring.html">Monitoring</a></li>
+    </ul>
+  </div></nav>
+
+  <section class="content">
+    <h1>What These Changes Bring to the Table</h1>
+    <p class="section-intro">This page maps each enhancement to practical operational and business outcomes so teams can adopt the processor confidently.</p>
+
+    <h2>Feature to Outcome Map</h2>
+    <table>
+      <thead><tr><th>Enhancement</th><th>Technical Effect</th><th>Operator Benefit</th><th>Business Value</th></tr></thead>
+      <tbody>
+        <tr><td><code>policies_inline</code></td><td>Config source can be embedded in collector YAML</td><td>Easier Helm/ConfigMap deployment</td><td>Faster rollout in Kubernetes environments</td></tr>
+        <tr><td><code>watch_policies</code></td><td>Automatic policy refresh without restart</td><td>Live policy tuning during incidents</td><td>Reduced downtime risk during change windows</td></tr>
+        <tr><td><code>max_batch_size</code></td><td>Hard cap before evaluation loop</td><td>Protects CPU path from oversized batches</td><td>More stable ingest cost profile</td></tr>
+        <tr><td>Admin API</td><td>Health/stats/config/reload/metrics endpoints</td><td>Runtime diagnostics and control</td><td>Improved MTTR and operational confidence</td></tr>
+        <tr><td>OTEL counters</td><td>Per-signal received/dropped/allowed/shadow/error metrics</td><td>Actionable dashboards and alerts</td><td>Faster decision-making on tuning policies</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Impact Diagram (from telemetry to decisions)</h2>
+    <div class="impact-grid">
+      <div class="impact-node">
+        <h3>Incoming telemetry</h3>
+        <p>Logs, traces, metrics arrive from many services with bursty patterns.</p>
+      </div>
+      <div class="impact-arrow">-></div>
+      <div class="impact-node">
+        <h3>Policy-aware filtering</h3>
+        <p>Records are evaluated against RLAAS policy with configurable failure behavior.</p>
+      </div>
+      <div class="impact-arrow">-></div>
+      <div class="impact-node">
+        <h3>Observable outcomes</h3>
+        <p>Allowed, denied, shadow, and error paths are measurable in real time.</p>
+      </div>
+      <div class="impact-arrow">-></div>
+      <div class="impact-node">
+        <h3>Operational actions</h3>
+        <p>Operators adjust policy quickly and verify impact through dashboards.</p>
+      </div>
+    </div>
+
+    <h2>Recommended adoption path</h2>
+    <ol>
+      <li>Enable processor with <code>fail_open: true</code> first.</li>
+      <li>Add policies in shadow mode and monitor drop-equivalent trends.</li>
+      <li>Turn on <code>watch_policies</code> and admin API for live operations.</li>
+      <li>Enforce selected policies and set alerts on drop/error ratios.</li>
+      <li>Use <code>max_batch_size</code> where burst shape is unpredictable.</li>
+    </ol>
+
+    <div class="callout">
+      For architecture-like visuals and flow-level understanding, see <a href="behavior-diagrams.html">Behavior Diagrams</a>.
+    </div>
+  </section>
+
+  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Change Impact</span></div></footer>
+  <script src="js/nav.js"></script>
+</body>
+</html>
