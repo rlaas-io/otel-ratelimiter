@@ -3,86 +3,134 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OTEL Rate Limiter</title>
-  <meta name="description" content="Production-ready OpenTelemetry Collector rate limiter powered by RLAAS policies with hot reload, admin APIs, and monitoring." />
+  <title>OTEL Rate Limiter — Policy-Driven Telemetry Control</title>
+  <meta name="description" content="Production-ready OpenTelemetry Collector rate limiter powered by RLAAS policies with hot reload, admin APIs, and full Prometheus monitoring." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 </head>
 <body>
-  <nav class="nav">
-    <div class="nav-inner">
-      <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
-      <button class="nav-toggle" aria-label="Menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-      <ul class="nav-links">
-        <li><a href="index.html" class="active">Overview</a></li>
-        <li><a href="getting-started.html">Getting Started</a></li>
-        <li><a href="configuration.html">Configuration</a></li>
-        <li><a href="policies.html">Policies</a></li>
-        <li><a href="behavior-diagrams.html">Diagrams</a></li>
-        <li><a href="admin-api.html">Admin API</a></li>
-        <li><a href="monitoring.html">Monitoring</a></li>
-        <li><a href="examples.html" class="nav-cta">Examples</a></li>
-      </ul>
-    </div>
-  </nav>
+  <nav class="nav"><div class="nav-inner"></div></nav>
 
+  <!-- ══════════════════════════════════════════════════════
+       HERO
+  ═════════════════════════════════════════════════════════ -->
   <header class="hero">
-    <h1>OpenTelemetry Rate Limiting For Real Production Traffic</h1>
-    <p class="subtitle">A policy-driven processor for logs, traces, and metrics that controls cost and protects backends using the RLAAS engine with hot reload, safe rollout, and operational visibility.</p>
+    <h1>OpenTelemetry Rate Limiting<br>For Real Production Traffic</h1>
+    <p class="subtitle">A policy-driven processor for logs, traces, and metrics that controls cost and protects backends — with hot reload, shadow testing, and full operational visibility.</p>
+
     <div class="hero-badges">
-      <span class="hero-badge">Logs</span>
-      <span class="hero-badge">Traces</span>
-      <span class="hero-badge">Metrics</span>
+      <span class="hero-badge">Logs · Traces · Metrics</span>
       <span class="hero-badge">Hot Reload</span>
       <span class="hero-badge">Fail Open / Closed</span>
+      <span class="hero-badge">Shadow Mode</span>
       <span class="hero-badge">Prometheus Metrics</span>
       <span class="hero-badge">Admin API</span>
     </div>
+
+    <div class="hero-cta">
+      <a href="getting-started.html" class="btn btn-primary">Get Started</a>
+      <a href="architecture.html" class="btn btn-outline">View Architecture</a>
+    </div>
   </header>
 
+  <!-- ══════════════════════════════════════════════════════
+       THE PROBLEM — WHY THIS EXISTS
+  ═════════════════════════════════════════════════════════ -->
   <section class="content-wide">
     <h2>Why this processor exists</h2>
-    <p class="section-intro">High-cardinality services and noisy workloads can flood observability pipelines. This processor applies consistent policy decisions before export, reducing cost and preserving critical telemetry.</p>
+    <p class="section-intro">High-cardinality services and noisy workloads flood observability pipelines without warning. This processor applies consistent, policy-driven decisions before any data reaches an exporter — keeping costs predictable and backends protected.</p>
 
     <div class="grid-3">
       <article class="card">
         <h3>Control Spend</h3>
-        <p>Apply per-signal and per-service limits so ingestion budgets stay predictable.</p>
+        <p>Apply per-signal and per-service rate limits so ingestion budgets stay predictable even when a service has an incident-level spike.</p>
       </article>
       <article class="card">
         <h3>Protect Backends</h3>
-        <p>Drop burst traffic early when backends are stressed, while keeping essential data flowing.</p>
+        <p>Drop burst traffic early — before it hits a storage backend or SaaS vendor — while keeping critical telemetry flowing with configurable fail-open behavior.</p>
       </article>
       <article class="card">
         <h3>Safer Rollouts</h3>
-        <p>Use shadow mode to measure impact first, then enforce without code redeploys.</p>
+        <p>Use shadow mode to measure exactly what a policy would drop, validate it in Grafana, then enforce — all without a code deploy or collector restart.</p>
       </article>
     </div>
 
     <div class="kpis">
-      <div class="kpi"><strong>3</strong><span>Signal types supported</span></div>
-      <div class="kpi"><strong>5</strong><span>Admin endpoints</span></div>
-      <div class="kpi"><strong>2</strong><span>Config sources (file or inline)</span></div>
-      <div class="kpi"><strong>0</strong><span>Collector restart needed for policy edits (with watch)</span></div>
+      <div class="kpi">
+        <strong>3</strong>
+        <span>Signal types supported (logs, traces, metrics)</span>
+      </div>
+      <div class="kpi">
+        <strong>5</strong>
+        <span>Admin API endpoints for runtime control</span>
+      </div>
+      <div class="kpi">
+        <strong>7</strong>
+        <span>OTEL counters per signal type</span>
+      </div>
+      <div class="kpi">
+        <strong>0</strong>
+        <span>Collector restarts needed for policy changes</span>
+      </div>
     </div>
   </section>
 
+  <!-- ══════════════════════════════════════════════════════
+       BEFORE / AFTER SNAPSHOT
+  ═════════════════════════════════════════════════════════ -->
+  <section class="features-section">
+    <div class="features-header">
+      <h2>Before &amp; After at a Glance</h2>
+      <p>One processor changes everything about how your telemetry pipeline handles volume, cost, and control.</p>
+    </div>
+
+    <div style="max-width:var(--wide-width);margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+      <div style="background:#fff8f7;border:1px solid #fca5a5;border-radius:16px;padding:2rem;">
+        <h3 style="color:#b91c1c;margin-top:0;">⚠ Without Rate Limiter</h3>
+        <ul style="color:var(--text-secondary);font-size:.93rem;">
+          <li>All traffic passes through to exporters regardless of volume</li>
+          <li>A single noisy service can flood the entire pipeline</li>
+          <li>Ingestion costs spike unexpectedly during incidents</li>
+          <li>No visibility into which services generate the most data</li>
+          <li>Policy changes require collector redeployment</li>
+        </ul>
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:16px;padding:2rem;">
+        <h3 style="color:#15803d;margin-top:0;">✓ With Rate Limiter</h3>
+        <ul style="color:var(--text-secondary);font-size:.93rem;">
+          <li>Per-service token bucket policies applied to every record</li>
+          <li>Burst traffic absorbed before it reaches any backend</li>
+          <li>Predictable cost with per-signal counters in Grafana</li>
+          <li>Shadow mode shows what <em>would</em> be dropped — safely</li>
+          <li>Live hot reload — policy changes take effect in seconds</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       VISUAL GUIDES
+  ═════════════════════════════════════════════════════════ -->
   <section class="content">
     <h2>Visual guides and impact pages</h2>
-    <div class="grid-2">
+    <div class="grid-3">
+      <article class="card">
+        <h4>Architecture</h4>
+        <p>The complete data plane, policy control loop, and all processor components in a single annotated diagram.</p>
+        <p><a href="architecture.html">Open Architecture →</a></p>
+      </article>
       <article class="card">
         <h4>Behavior Diagrams</h4>
-        <p>Step-by-step diagrams that show current collector flow versus enhanced runtime behavior after these changes.</p>
-        <p><a href="behavior-diagrams.html">Open Behavior Diagrams</a></p>
+        <p>Side-by-side visual comparison of a plain collector pipeline vs. the rate-limited pipeline — including the decision flow for every record.</p>
+        <p><a href="behavior-diagrams.html">Open Behavior Diagrams →</a></p>
       </article>
       <article class="card">
         <h4>Change Impact</h4>
-        <p>A practical mapping from each enhancement to operational improvements and business outcomes.</p>
-        <p><a href="change-impact.html">Open Change Impact</a></p>
+        <p>A practical feature-to-outcome map showing what each enhancement delivers to operators and the business.</p>
+        <p><a href="change-impact.html">Open Change Impact →</a></p>
       </article>
     </div>
 
@@ -90,31 +138,44 @@
     <div class="grid-2">
       <article class="card">
         <h4>Policy sources</h4>
-        <p>Load from <code>policy_file</code> or <code>policies_inline</code>. Mutually exclusive and validated at startup.</p>
+        <p>Load from <code>policy_file</code> or <code>policies_inline</code>. Mutually exclusive and validated at startup — no ambiguous configs.</p>
       </article>
       <article class="card">
         <h4>Hot reload</h4>
-        <p><code>watch_policies</code> uses fsnotify with polling fallback to refresh policy decisions immediately.</p>
+        <p><code>watch_policies</code> uses fsnotify with polling fallback to pick up policy file changes instantly. Or trigger manually with <code>POST /reload</code>.</p>
       </article>
       <article class="card">
         <h4>Batch safety limit</h4>
-        <p><code>max_batch_size</code> prevents oversized batches from overwhelming evaluation paths.</p>
+        <p><code>max_batch_size</code> drops excess records before the evaluation loop even runs — protecting CPU and memory on extreme burst shapes.</p>
       </article>
       <article class="card">
         <h4>Operational control plane</h4>
-        <p>Built-in admin server provides health, stats, config view, reload trigger, and Prometheus metrics.</p>
+        <p>Built-in admin server provides health, stats, config view, reload trigger, and Prometheus metrics — all over HTTP, no sidecar needed.</p>
       </article>
     </div>
 
+    <div class="callout callout-tip">
+      <strong>Start safely.</strong> Enable <code>fail_open: true</code> first and add policies in <code>shadow_only</code> mode. Observe the metrics, validate in Grafana, then enforce — with no restart at any step.
+    </div>
+
     <div class="callout">
-      Start with <a href="getting-started.html">Getting Started</a>, then tune behavior in <a href="configuration.html">Configuration</a> and <a href="policies.html">Policies</a>.
+      Ready to install? Start with <a href="getting-started.html">Getting Started</a>, then tune behavior in <a href="configuration.html">Configuration</a> and <a href="policies.html">Policies</a>.
     </div>
   </section>
 
   <footer class="footer">
     <div class="footer-inner">
-      <span>OTEL Rate Limiter Docs</span>
-      <span>Built for GitHub Pages</span>
+      <ul class="footer-links">
+        <li><a href="getting-started.html">Getting Started</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+        <li><a href="behavior-diagrams.html">Behavior Diagrams</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+        <li><a href="policies.html">Policies</a></li>
+        <li><a href="admin-api.html">Admin API</a></li>
+        <li><a href="monitoring.html">Monitoring</a></li>
+        <li><a href="examples.html">Examples</a></li>
+      </ul>
+      <span>OTEL Rate Limiter · Built for GitHub Pages</span>
     </div>
   </footer>
 
