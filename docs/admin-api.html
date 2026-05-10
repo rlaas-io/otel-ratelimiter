@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin API - OTEL Rate Limiter</title>
-  <meta name="description" content="Operational admin API for OTEL rate limiter." />
+  <meta name="description" content="Operational HTTP Admin API for the OTEL Rate Limiter — health, stats, config inspection, live reload, and Prometheus metrics." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -12,61 +12,141 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 </head>
 <body>
-  <nav class="nav"><div class="nav-inner">
-    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
-    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-    <ul class="nav-links">
-      <li><a href="index.html">Overview</a></li>
-      <li><a href="getting-started.html">Getting Started</a></li>
-      <li><a href="configuration.html">Configuration</a></li>
-      <li><a href="policies.html">Policies</a></li>
-      <li><a href="behavior-diagrams.html">Diagrams</a></li>
-      <li><a href="admin-api.html" class="active">Admin API</a></li>
-      <li><a href="monitoring.html">Monitoring</a></li>
-      <li><a href="examples.html" class="nav-cta">Examples</a></li>
-    </ul>
-  </div></nav>
+  <nav class="nav"><div class="nav-inner"></div></nav>
+
+  <header class="hero" style="padding:4rem 2rem 3.4rem;">
+    <h1>Admin API</h1>
+    <p class="subtitle">Five HTTP endpoints that give you runtime insight and live control over the rate limiter — without touching the collector process or restarting anything.</p>
+  </header>
 
   <section class="content">
-    <h1>Admin API</h1>
-    <p class="section-intro">Enable with <code>admin_addr</code> for runtime visibility and operational controls.</p>
-
+    <h2>Enabling the Admin Server</h2>
+    <p>Add <code>admin_addr</code> to your processor config to expose the API:</p>
     <pre><code>processors:
   ratelimiter:
     policy_file: /etc/otelcol/policies.json
-    admin_addr: ":8090"</code></pre>
+    admin_addr: ":8090"   # listens on all interfaces, port 8090</code></pre>
+
+    <div class="callout callout-warning">
+      <strong>Security:</strong> Bind to loopback (<code>127.0.0.1:8090</code>) in production, or place the admin port behind an authenticated reverse proxy. The API has no built-in authentication.
+    </div>
 
     <h2>Endpoints</h2>
-    <table>
-      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
-      <tbody>
-        <tr><td>GET</td><td><code>/health</code></td><td>Service liveness and uptime</td></tr>
-        <tr><td>GET</td><td><code>/stats</code></td><td>Per-signal counters</td></tr>
-        <tr><td>GET</td><td><code>/config</code></td><td>Current sanitized config</td></tr>
-        <tr><td>POST</td><td><code>/reload</code></td><td>Force policy reload</td></tr>
-        <tr><td>GET</td><td><code>/metrics</code></td><td>Prometheus text metrics</td></tr>
-      </tbody>
-    </table>
+    <div class="endpoint-table">
+      <table>
+        <thead>
+          <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="endpoint-method method-get">GET</span></td>
+            <td class="endpoint-path">/health</td>
+            <td>Service liveness and uptime. Returns <code>200 OK</code> when the processor is running.</td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method method-get">GET</span></td>
+            <td class="endpoint-path">/stats</td>
+            <td>Cumulative per-signal counters: received, allowed, dropped, denied, shadow, errors, reloads.</td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method method-get">GET</span></td>
+            <td class="endpoint-path">/config</td>
+            <td>Sanitized view of the current running configuration. Useful for verifying a hot reload applied correctly.</td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method method-post">POST</span></td>
+            <td class="endpoint-path">/reload</td>
+            <td>Force an immediate policy reload across all engines. Returns the number of engines refreshed.</td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method method-get">GET</span></td>
+            <td class="endpoint-path">/metrics</td>
+            <td>Prometheus text format metrics — the same counters as <code>/stats</code> but in <code>TYPE</code>/<code>HELP</code> Prometheus format.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-    <h2>Examples</h2>
-    <pre><code>curl http://localhost:8090/health
-curl http://localhost:8090/stats
-curl http://localhost:8090/config
-curl -X POST http://localhost:8090/reload
-curl http://localhost:8090/metrics</code></pre>
+    <h2>Usage Examples</h2>
 
-    <h3>Sample /reload response</h3>
+    <h4>Check processor health</h4>
+    <pre><code>curl -s http://localhost:8090/health</code></pre>
+
+    <h4>Inspect live counters</h4>
+    <pre><code>curl -s http://localhost:8090/stats | jq .</code></pre>
+
+    <h4>See active policy config</h4>
+    <pre><code>curl -s http://localhost:8090/config | jq .</code></pre>
+
+    <h4>Force a policy reload</h4>
+    <pre><code>curl -s -X POST http://localhost:8090/reload | jq .</code></pre>
+
+    <h4>Scrape Prometheus metrics</h4>
+    <pre><code>curl -s http://localhost:8090/metrics</code></pre>
+
+    <h3>Sample <code>/reload</code> response</h3>
     <pre><code>{
   "status": "reloaded",
   "engines": 3
 }</code></pre>
 
+    <h3>Sample <code>/stats</code> response</h3>
+    <pre><code>{
+  "logs": {
+    "received":  120450,
+    "allowed":    98200,
+    "dropped":    22250,
+    "denied":     22000,
+    "shadow":         0,
+    "errors":         0
+  },
+  "traces": {
+    "received":   41020,
+    "allowed":    41020,
+    "dropped":        0,
+    "denied":         0,
+    "shadow":      3800,
+    "errors":         0
+  }
+}</code></pre>
+
+    <h2>Operational Quick Checks</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h4>During an incident</h4>
+        <p>Use <code>/stats</code> to see if drop rates are abnormally high, and <code>/config</code> to confirm the policy that's active — no Prometheus lag.</p>
+      </div>
+      <div class="card">
+        <h4>After a policy change</h4>
+        <p>Call <code>POST /reload</code> then immediately check <code>/config</code> to verify the new policy loaded successfully before checking metrics.</p>
+      </div>
+      <div class="card">
+        <h4>Kubernetes readiness probe</h4>
+        <p>Point your <code>readinessProbe.httpGet</code> at <code>/health</code> on port 8090 — returns non-200 if the processor is not ready to serve traffic.</p>
+      </div>
+      <div class="card">
+        <h4>No Prometheus? No problem</h4>
+        <p><code>GET /stats</code> gives cumulative totals instantly. Useful for shell scripts, CI checks, and on-call runbooks.</p>
+      </div>
+    </div>
+
     <div class="callout">
-      Security recommendation: bind to loopback (<code>127.0.0.1:8090</code>) or expose behind an authenticated reverse proxy.
+      Metrics from <code>/metrics</code> are documented in detail on the <a href="monitoring.html">Monitoring</a> page, including PromQL examples and alert rules.
     </div>
   </section>
 
-  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Admin API</span></div></footer>
+  <footer class="footer">
+    <div class="footer-inner">
+      <ul class="footer-links">
+        <li><a href="index.html">Overview</a></li>
+        <li><a href="monitoring.html">Monitoring</a></li>
+        <li><a href="configuration.html">Configuration</a></li>
+        <li><a href="examples.html">Examples</a></li>
+      </ul>
+      <span>OTEL Rate Limiter Docs · Admin API</span>
+    </div>
+  </footer>
+
   <script src="js/nav.js"></script>
 </body>
 </html>
