@@ -45,8 +45,19 @@
     tenant_id: ""
     application: ""
     environment: ""
+    service_expr: ""
+    org_id_expr: ""
+    tenant_id_expr: ""
+    application_expr: ""
+    environment_expr: ""
     max_batch_size: 0
-    admin_addr: ""</code></pre>
+    admin_addr: ""
+    admin_auth_token: ""
+    admin_token_header: "Authorization"
+    admin_cors_allowed_origins: []
+    admin_tls_cert_file: ""
+    admin_tls_key_file: ""
+    admin_tls_client_ca_file: ""</code></pre>
 
     <h2>Field Table</h2>
     <table>
@@ -63,8 +74,19 @@
         <tr><td><code>tenant_id</code></td><td>string</td><td>empty</td><td>Default context field</td></tr>
         <tr><td><code>application</code></td><td>string</td><td>empty</td><td>Default context field</td></tr>
         <tr><td><code>environment</code></td><td>string</td><td>empty</td><td>Default context field</td></tr>
+        <tr><td><code>service_expr</code></td><td>string</td><td>empty</td><td>Fallback expression for service lookup from attrs</td></tr>
+        <tr><td><code>org_id_expr</code></td><td>string</td><td>empty</td><td>Lookup org from attrs before using <code>org_id</code></td></tr>
+        <tr><td><code>tenant_id_expr</code></td><td>string</td><td>empty</td><td>Lookup tenant from attrs before using <code>tenant_id</code></td></tr>
+        <tr><td><code>application_expr</code></td><td>string</td><td>empty</td><td>Lookup application from attrs before using <code>application</code></td></tr>
+        <tr><td><code>environment_expr</code></td><td>string</td><td>empty</td><td>Lookup environment from attrs before using <code>environment</code></td></tr>
         <tr><td><code>max_batch_size</code></td><td>int</td><td>0</td><td>0 means unlimited</td></tr>
         <tr><td><code>admin_addr</code></td><td>string</td><td>empty</td><td>Enable admin HTTP API</td></tr>
+        <tr><td><code>admin_auth_token</code></td><td>string</td><td>empty</td><td>Require token auth for all admin endpoints</td></tr>
+        <tr><td><code>admin_token_header</code></td><td>string</td><td>Authorization</td><td>Header name for admin token auth</td></tr>
+        <tr><td><code>admin_cors_allowed_origins</code></td><td>list&lt;string&gt;</td><td>empty</td><td>Allowed browser origins for Admin API (use <code>["*"]</code> with care)</td></tr>
+        <tr><td><code>admin_tls_cert_file</code></td><td>string</td><td>empty</td><td>Enable HTTPS for admin server</td></tr>
+        <tr><td><code>admin_tls_key_file</code></td><td>string</td><td>empty</td><td>TLS private key for admin HTTPS</td></tr>
+        <tr><td><code>admin_tls_client_ca_file</code></td><td>string</td><td>empty</td><td>Optional mTLS client CA</td></tr>
       </tbody>
     </table>
 
@@ -72,7 +94,105 @@
     <ul>
       <li>Exactly one of <code>policy_file</code> or <code>policies_inline</code> must be set.</li>
       <li><code>cache_ttl</code>, <code>watch_interval</code>, and <code>max_batch_size</code> cannot be negative.</li>
+      <li>If TLS is enabled, both <code>admin_tls_cert_file</code> and <code>admin_tls_key_file</code> are required.</li>
     </ul>
+
+    <h2>Expression Examples</h2>
+    <pre><code>service_expr: "resource.attributes.service.name || attributes.service || k8s.deployment.name"
+org_id_expr: "resource.attributes.org.id || attributes.org_id"
+tenant_id_expr: "attributes.tenant.id || attributes.tenant_id"
+application_expr: "attributes.app.name || resource.attributes.service.name"
+environment_expr: "attributes.deployment.environment || resource.attributes.deployment.environment"</code></pre>
+
+    <h2>Secrets and Vault Integration</h2>
+    <p class="section-intro">No secrets ever need to be hardcoded in collector configuration. The OTEL Collector's built-in environment variable expansion lets you inject tokens, paths, and credentials from any secret store.</p>
+
+    <h3>Environment variable expansion</h3>
+    <p>The OTEL Collector resolves <code>${env:VAR_NAME}</code> at startup for all string config fields:</p>
+    <pre><code>processors:
+  ratelimiter:
+    policy_file: /etc/otelcol/policies.json
+    admin_addr: ":8090"
+    admin_auth_token: "${env:OTEL_ADMIN_TOKEN}"
+    admin_tls_cert_file: "${env:ADMIN_TLS_CERT}"
+    admin_tls_key_file: "${env:ADMIN_TLS_KEY}"
+    org_id: "${env:ORG_ID}"</code></pre>
+
+    <div class="callout callout-warning">
+      <strong>Tip:</strong> Set environment variables in your process supervisor, Kubernetes Secret, or Vault Agent before launching the collector. The collector never reloads env vars at runtime — restart is required to pick up changes to environment variables.
+    </div>
+
+    <h3>Policy file from any path</h3>
+    <p><code>policy_file</code> is a plain file system path. It works with any mechanism that delivers files:</p>
+    <div class="grid-2">
+      <div class="card">
+        <h4>Vault Agent sidecar</h4>
+        <p>Vault Agent renders the policy file from a Vault secret to a shared volume. The collector reads from the volume path; Vault Agent keeps it fresh.</p>
+        <pre><code># Vault Agent template
+{{ with secret "secret/otel/policies" }}
+{{ .Data.data.json | toJSON }}
+{{ end }}
+
+# Collector config
+policy_file: /vault/secrets/policies.json
+watch_policies: true</code></pre>
+      </div>
+      <div class="card">
+        <h4>Kubernetes ConfigMap</h4>
+        <p>Mount a ConfigMap as a file. Use <code>watch_policies: true</code> to hot-reload when the ConfigMap is updated (kubelet typically propagates within 60s).</p>
+        <pre><code># ConfigMap mount in pod spec
+volumes:
+  - name: policies
+    configMap:
+      name: ratelimiter-policies
+volumeMounts:
+  - name: policies
+    mountPath: /etc/otelcol
+
+# Collector config
+policy_file: /etc/otelcol/policies.json
+watch_policies: true</code></pre>
+      </div>
+      <div class="card">
+        <h4>AWS Secrets Manager / SSM</h4>
+        <p>Use the AWS Secrets Manager Agent or a sidecar (e.g., <code>aws-secrets-manager-agent</code>) to write secrets to a file. Point <code>policy_file</code> at that file.</p>
+        <pre><code># Example with secrets-store-csi-driver
+volumes:
+  - name: policies-secret
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: otel-policies</code></pre>
+      </div>
+      <div class="card">
+        <h4>Inline from CI/CD pipeline</h4>
+        <p>Inject policy JSON directly via <code>policies_inline</code> using an environment variable expanded at deploy time — no file on disk needed.</p>
+        <pre><code># In your deployment pipeline:
+export OTEL_POLICIES_INLINE=$(cat policies.json)
+
+# Collector config:
+processors:
+  ratelimiter:
+    policies_inline: "${env:OTEL_POLICIES_INLINE}"</code></pre>
+      </div>
+    </div>
+
+    <h3>Hot reload after secret rotation</h3>
+    <p>When a sidecar updates the policy file, the collector picks up the change automatically if <code>watch_policies: true</code>. For controlled rollouts, disable file watching and call <code>POST /reload</code> explicitly after your sidecar confirms the file is written:</p>
+    <pre><code># In a post-rotation hook:
+curl -s -X POST https://collector:8090/reload \
+  -H "Authorization: Bearer ${OTEL_ADMIN_TOKEN}"
+# Confirm the reload applied the new SHA
+curl -s https://collector:8090/config/policies | jq '.content_sha256'</code></pre>
+
+    <h3>Admin token security</h3>
+    <p>The admin auth token is a shared secret. Rotate it by:</p>
+    <ol>
+      <li>Updating the secret in Vault / Kubernetes Secret.</li>
+      <li>Rolling the collector pod (or restarting the process) to pick up the new <code>${env:OTEL_ADMIN_TOKEN}</code> value.</li>
+      <li>Updating any automation or dashboards that call the Admin API with the new token.</li>
+    </ol>
   </section>
 
   <footer class="footer">

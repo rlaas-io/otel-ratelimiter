@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/rlaas-io/rlaas/pkg/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/rlaas-io/rlaas/pkg/model"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -97,3 +97,36 @@ func TestTracesProcessor_EmptyTraces(t *testing.T) {
 	err = proc.ConsumeTraces(context.Background(), td)
 	require.NoError(t, err)
 }
+
+func TestTracesProcessor_WithWatcher(t *testing.T) {
+	policyFile := createTempPolicyFile(t, []model.Policy{
+		tokenBucketPolicy("p1", "watch-traces", "span", 5, 5, model.ActionDrop),
+	})
+	cfg := &Config{
+		PolicyFile:    policyFile,
+		FailOpen:      true,
+		WatchPolicies: true,
+	}
+
+	sink := new(consumertest.TracesSink)
+	factory := NewFactory()
+
+	proc, err := factory.CreateTraces(context.Background(), nopSettings(), cfg, sink)
+	require.NoError(t, err)
+	require.NoError(t, proc.Start(context.Background(), componenttest.NewNopHost()))
+	defer proc.Shutdown(context.Background())
+
+	// Create trace to verify processor is working
+	td := ptrace.NewTraces()
+	rs := td.ResourceSpans().AppendEmpty()
+	rs.Resource().Attributes().PutStr("service.name", "watched-trace-service")
+	ss := rs.ScopeSpans().AppendEmpty()
+	span := ss.Spans().AppendEmpty()
+	span.SetName("test-span")
+
+	err = proc.ConsumeTraces(context.Background(), td)
+	require.NoError(t, err)
+
+	assert.Len(t, sink.AllTraces(), 1)
+}
+

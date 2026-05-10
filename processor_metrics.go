@@ -109,7 +109,7 @@ func (mp *metricsProcessor) processMetrics(ctx context.Context, md pmetric.Metri
 					budget--
 				}
 
-				reqCtx := buildMetricsContext(resource, metric)
+				reqCtx := buildMetricsContextWithSelectors(resource, metric, mp.engine.selectors)
 				decision, err := mp.engine.evaluate(ctx, reqCtx)
 				if err != nil {
 					mp.dropped.Add(1)

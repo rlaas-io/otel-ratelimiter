@@ -110,7 +110,7 @@ func (lp *logsProcessor) processLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 					budget--
 				}
 
-				reqCtx := buildLogsContext(resource, lr)
+				reqCtx := buildLogsContextWithSelectors(resource, lr, lp.engine.selectors)
 				decision, err := lp.engine.evaluate(ctx, reqCtx)
 				if err != nil {
 					lp.dropped.Add(1)

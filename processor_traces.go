@@ -109,7 +109,7 @@ func (tp *tracesProcessor) processTraces(ctx context.Context, td ptrace.Traces) 
 					budget--
 				}
 
-				reqCtx := buildTracesContext(resource, span)
+				reqCtx := buildTracesContextWithSelectors(resource, span, tp.engine.selectors)
 				decision, err := tp.engine.evaluate(ctx, reqCtx)
 				if err != nil {
 					tp.dropped.Add(1)

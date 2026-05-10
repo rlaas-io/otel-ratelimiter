@@ -100,6 +100,39 @@ func TestLogsProcessor_AllDropped(t *testing.T) {
 	assert.Equal(t, 2, totalRecords)
 }
 
+func TestLogsProcessor_WithWatcher(t *testing.T) {
+	policyFile := createTempPolicyFile(t, []model.Policy{
+		tokenBucketPolicy("p1", "watch-logs", "log", 3, 3, model.ActionDrop),
+	})
+	cfg := &Config{
+		PolicyFile:    policyFile,
+		FailOpen:      true,
+		WatchPolicies: true,
+	}
+
+	sink := new(consumertest.LogsSink)
+	factory := NewFactory()
+
+	proc, err := factory.CreateLogs(context.Background(), nopSettings(), cfg, sink)
+	require.NoError(t, err)
+	require.NoError(t, proc.Start(context.Background(), componenttest.NewNopHost()))
+	defer proc.Shutdown(context.Background())
+
+	// Create logs to verify processor is working
+	ld := plog.NewLogs()
+	rl := ld.ResourceLogs().AppendEmpty()
+	rl.Resource().Attributes().PutStr("service.name", "watched-service")
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+	lr.Body().SetStr("test log with watcher")
+	lr.SetSeverityText("INFO")
+
+	err = proc.ConsumeLogs(context.Background(), ld)
+	require.NoError(t, err)
+
+	assert.Len(t, sink.AllLogs(), 1)
+}
+
 func TestLogsProcessor_ShadowMode(t *testing.T) {
 	policyFile := createTempPolicyFile(t, []model.Policy{
 		shadowPolicy("p1", "shadow-logs", "log", 2),

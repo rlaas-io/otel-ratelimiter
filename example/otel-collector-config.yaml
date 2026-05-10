@@ -32,6 +32,18 @@ processors:
     org_id: my-org
     environment: production
 
+    # Optional expression-based extraction from telemetry attrs.
+    service_expr: resource.attributes.service.name
+    org_id_expr: resource.attributes.org.id
+
+    # Optional: secure admin API.
+    admin_addr: 127.0.0.1:8090
+    admin_auth_token: ${env:OTEL_RATELIMITER_ADMIN_TOKEN}
+    # admin_cors_allowed_origins: ["https://rlaas-io.github.io"]
+    # admin_tls_cert_file: /etc/otel/tls/admin.crt
+    # admin_tls_key_file: /etc/otel/tls/admin.key
+    # admin_tls_client_ca_file: /etc/otel/tls/clients-ca.crt
+
   # Standard batch processor — group records before export.
   batch:
     timeout: 5s

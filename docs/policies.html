@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Policies - OTEL Rate Limiter</title>
-  <meta name="description" content="How to write practical RLAAS policies for OTEL rate limiting." />
+  <meta name="description" content="Complete policy reference for OTEL Rate Limiter — schema, service/org scoping, fallback hierarchy, expression language, and safe rollout." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -27,49 +27,386 @@
     </ul>
   </div></nav>
 
+  <header class="hero" style="padding:4rem 2rem 3.4rem;">
+    <h1>Policy Reference</h1>
+    <p class="subtitle">How policies are defined, scoped, matched, and applied — from a single global default to per-service per-org precision limits.</p>
+  </header>
+
   <section class="content">
-    <h1>Policy Design</h1>
-    <p class="section-intro">The processor relies on RLAAS policy evaluation. Keep policies narrow, observable, and staged with shadow mode.</p>
 
-    <h2>Baseline policy</h2>
+    <!-- ─── POLICY SCHEMA ─────────────────────────────────────── -->
+    <h2>Policy Schema</h2>
+    <p class="section-intro">A policy file is a JSON array. Each object in the array defines one rate-limit rule.</p>
+
     <pre><code>[
   {
-    "id": "checkout-logs",
-    "name": "Checkout logs limit",
-    "signal_type": "log",
-    "service": "checkout",
-    "algorithm": "token_bucket",
-    "rate": 500,
-    "burst": 1000,
-    "action": "drop"
+    "id":                "checkout-logs-prod",
+    "name":              "Checkout logs — production limit",
+    "enabled":           true,
+    "signal_type":       "log",
+    "service":           "checkout",
+    "org_id":            "acme-corp",
+    "tenant_id":         "tenant-42",
+    "application":       "storefront",
+    "environment":       "production",
+    "algorithm":         "token_bucket",
+    "rate":              500,
+    "burst":             1000,
+    "action":            "drop",
+    "enforcement_mode":  "enforce"
   }
 ]</code></pre>
 
-    <h2>Safe rollout policy</h2>
-    <pre><code>[
-  {
-    "id": "payments-shadow",
-    "name": "Observe before enforce",
-    "signal_type": "trace",
-    "service": "payments",
-    "algorithm": "token_bucket",
-    "rate": 80,
-    "burst": 150,
-    "action": "shadow_only"
-  }
-]</code></pre>
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>string</td><td>yes</td><td>Unique identifier for this policy; appears in <code>/stats</code> matched policy field.</td></tr>
+        <tr><td><code>name</code></td><td>string</td><td>no</td><td>Human-readable label. Shown in Admin UI and logs.</td></tr>
+        <tr><td><code>enabled</code></td><td>bool</td><td>no</td><td>Default <code>true</code>. Set <code>false</code> to disable without deleting.</td></tr>
+        <tr><td><code>signal_type</code></td><td>string</td><td>no</td><td><code>log</code>, <code>span</code>, or <code>metric</code>. Omit to match all signals.</td></tr>
+        <tr><td><code>service</code></td><td>string</td><td>no</td><td>Service name to match. Omit for org-wide or global scope.</td></tr>
+        <tr><td><code>org_id</code></td><td>string</td><td>no</td><td>Organization identifier. Omit for global scope.</td></tr>
+        <tr><td><code>tenant_id</code></td><td>string</td><td>no</td><td>Tenant identifier for multi-tenant deployments.</td></tr>
+        <tr><td><code>application</code></td><td>string</td><td>no</td><td>Application name scope. Omit to match any application.</td></tr>
+        <tr><td><code>environment</code></td><td>string</td><td>no</td><td><code>production</code>, <code>staging</code>, etc. Omit to match all environments.</td></tr>
+        <tr><td><code>algorithm</code></td><td>string</td><td>yes</td><td>Rate limit algorithm. See algorithms section below.</td></tr>
+        <tr><td><code>rate</code></td><td>int</td><td>yes</td><td>Allowed records per window/second.</td></tr>
+        <tr><td><code>burst</code></td><td>int</td><td>no</td><td>Burst headroom above <code>rate</code>. Applicable to <code>token_bucket</code>.</td></tr>
+        <tr><td><code>action</code></td><td>string</td><td>yes</td><td><code>drop</code> — remove over-limit records; <code>allow</code> — pass all (for exceptions).</td></tr>
+        <tr><td><code>enforcement_mode</code></td><td>string</td><td>no</td><td><code>enforce</code> (default) or <code>shadow_only</code> — observe without dropping.</td></tr>
+      </tbody>
+    </table>
 
-    <h2>Practical guidance</h2>
-    <ul>
-      <li>Start with expected steady-state throughput for <code>rate</code>.</li>
-      <li>Set <code>burst</code> between 1.5x and 3x of <code>rate</code> for short spikes.</li>
-      <li>Prefer service-specific policies over global wildcards for critical paths.</li>
-      <li>Use shadow mode first, then switch to enforced drop once validated.</li>
-    </ul>
+    <!-- ─── ALGORITHMS ─────────────────────────────────────────── -->
+    <h2>Rate Limit Algorithms</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h4>token_bucket</h4>
+        <p>Tokens refill at <code>rate</code> per second. Burst allows short spikes above the steady-state rate. Best for general-purpose throttling.</p>
+        <pre><code>"algorithm": "token_bucket",
+"rate": 500,
+"burst": 1000</code></pre>
+      </div>
+      <div class="card">
+        <h4>fixed_window</h4>
+        <p>Counts records in a fixed time window (e.g., 1 minute). Resets at window boundary. Simple and predictable.</p>
+        <pre><code>"algorithm": "fixed_window",
+"rate": 10000</code></pre>
+      </div>
+      <div class="card">
+        <h4>sliding_window</h4>
+        <p>Smoothed count over the past N seconds. Prevents burst spikes at window edges; more accurate than fixed window.</p>
+        <pre><code>"algorithm": "sliding_window",
+"rate": 10000</code></pre>
+      </div>
+      <div class="card">
+        <h4>leaky_bucket</h4>
+        <p>Records drain at a constant rate; excess queues or drops. Good for enforcing strict steady-state throughput.</p>
+        <pre><code>"algorithm": "leaky_bucket",
+"rate": 200</code></pre>
+      </div>
+    </div>
+
+    <!-- ─── SERVICE & ORG SCOPING ─────────────────────────────── -->
+    <h2>Service and Org Scoping</h2>
+    <p class="section-intro">Every telemetry record carries context extracted from its OTEL attributes. The policy engine matches the most specific policy that fits that context.</p>
+
+    <p>The processor extracts these context fields from every incoming record before evaluating it against policies:</p>
+
+    <table>
+      <thead><tr><th>Context Field</th><th>Extracted From</th><th>Config Override</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>service</code></td>
+          <td>Auto: <code>resource.attributes["service.name"]</code><br/>Custom: <code>service_expr</code></td>
+          <td>Expression overrides the auto lookup. See <a href="#expression-language">Expression Language</a>.</td>
+        </tr>
+        <tr>
+          <td><code>org_id</code></td>
+          <td><code>org_id_expr</code> → fallback to <code>org_id</code> config value</td>
+          <td>Set <code>org_id: "acme"</code> to inject a default for all records.</td>
+        </tr>
+        <tr>
+          <td><code>tenant_id</code></td>
+          <td><code>tenant_id_expr</code> → fallback to <code>tenant_id</code> config value</td>
+          <td>Useful for SaaS platforms with per-tenant billing.</td>
+        </tr>
+        <tr>
+          <td><code>application</code></td>
+          <td><code>application_expr</code> → fallback to <code>application</code> config value</td>
+          <td>Group multiple services under one application umbrella.</td>
+        </tr>
+        <tr>
+          <td><code>environment</code></td>
+          <td><code>environment_expr</code> → fallback to <code>environment</code> config value</td>
+          <td>Set <code>environment: "production"</code> to tag all records.</td>
+        </tr>
+        <tr>
+          <td><code>signal_type</code></td>
+          <td>Determined by pipeline: <code>log</code>, <code>span</code>, <code>metric</code></td>
+          <td>Cannot be overridden — set by which pipeline processes the record.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ─── FALLBACK HIERARCHY ────────────────────────────────── -->
+    <h2>Fallback Hierarchy</h2>
+    <p class="section-intro">When evaluating a record, the RLAAS engine finds the most specific matching policy. If none match at that specificity level, it falls through to broader policies.</p>
+
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-num">1</div>
+        <div class="timeline-body">
+          <strong>Service-specific + Org match</strong><br/>
+          Policy has both <code>service: "checkout"</code> and <code>org_id: "acme"</code>. Most precise — applies to one service within one org.
+          <pre style="margin-top:.7rem;"><code>{ "service": "checkout", "org_id": "acme", "rate": 500 }</code></pre>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num">2</div>
+        <div class="timeline-body">
+          <strong>Service-specific (any org)</strong><br/>
+          Policy has <code>service: "checkout"</code> but no <code>org_id</code>. Applies to that service across all orgs.
+          <pre style="margin-top:.7rem;"><code>{ "service": "checkout", "rate": 500 }</code></pre>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num">3</div>
+        <div class="timeline-body">
+          <strong>Org-level default</strong><br/>
+          Policy has <code>org_id: "acme"</code> but no <code>service</code>. Applies to all services in that org that have no more specific policy.
+          <pre style="margin-top:.7rem;"><code>{ "org_id": "acme", "rate": 2000 }</code></pre>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num">4</div>
+        <div class="timeline-body">
+          <strong>Signal-type default</strong><br/>
+          Policy has <code>signal_type: "log"</code> but no service or org. Applies to all log records that haven't matched anything above.
+          <pre style="margin-top:.7rem;"><code>{ "signal_type": "log", "rate": 10000 }</code></pre>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num">5</div>
+        <div class="timeline-body">
+          <strong>Global default</strong><br/>
+          Policy has no scope fields at all. Catches everything. Acts as the catch-all safety net.
+          <pre style="margin-top:.7rem;"><code>{ "id": "global-default", "rate": 50000, "action": "drop" }</code></pre>
+        </div>
+      </div>
+    </div>
 
     <div class="callout">
-      With <code>watch_policies: true</code>, policy updates are applied live. For deterministic rollout windows, use <code>POST /reload</code> after file publish.
+      The engine always picks the <strong>most specific</strong> matching policy. If a record matches both a service policy and an org policy, the service policy wins. Only one policy is applied per record.
     </div>
+
+    <h3>Complete layered example</h3>
+    <pre><code>[
+  // Global safety net — catches everything with no other policy
+  {
+    "id":          "global-default",
+    "algorithm":   "token_bucket",
+    "rate":        50000,
+    "burst":       75000,
+    "action":      "drop"
+  },
+  // Org-level default — all ACME services that have no specific rule
+  {
+    "id":          "acme-default",
+    "org_id":      "acme",
+    "algorithm":   "token_bucket",
+    "rate":        5000,
+    "burst":       8000,
+    "action":      "drop"
+  },
+  // Service-specific for ACME — most precise, wins over acme-default
+  {
+    "id":          "acme-checkout-logs",
+    "org_id":      "acme",
+    "service":     "checkout",
+    "signal_type": "log",
+    "algorithm":   "token_bucket",
+    "rate":        500,
+    "burst":       1000,
+    "action":      "drop"
+  }
+]</code></pre>
+
+    <!-- ─── EXPRESSION LANGUAGE ───────────────────────────────── -->
+    <h2 id="expression-language">Expression Language</h2>
+    <p class="section-intro">The expression language lets you extract context fields from arbitrary OTEL attributes without changing the collector code. Expressions are configured in the processor YAML.</p>
+
+    <p>Expressions use <code>||</code> to define a priority-ordered list of attribute lookups. The first non-empty value wins:</p>
+
+    <pre><code>service_expr:     "resource.attributes.service.name || attributes.service || k8s.deployment.name"
+org_id_expr:      "resource.attributes.org.id || attributes.org_id || attributes.x-org-id"
+tenant_id_expr:   "attributes.tenant.id || attributes.tenant_id || attributes.x-tenant-id"
+application_expr: "attributes.app.name || resource.attributes.service.name"
+environment_expr: "attributes.deployment.environment || resource.attributes.deployment.environment || \"production\""</code></pre>
+
+    <table>
+      <thead><tr><th>Token Form</th><th>Looks Up</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>resource.attributes.KEY</code></td>
+          <td>Resource-level OTEL attribute (set by the SDK or Collector)</td>
+          <td><code>resource.attributes.service.name</code></td>
+        </tr>
+        <tr>
+          <td><code>attributes.KEY</code></td>
+          <td>Span / log / metric record-level attribute</td>
+          <td><code>attributes.tenant_id</code></td>
+        </tr>
+        <tr>
+          <td><code>tags.KEY</code></td>
+          <td>Alias for <code>attributes.KEY</code></td>
+          <td><code>tags.org.id</code></td>
+        </tr>
+        <tr>
+          <td><code>KEY</code> (bare)</td>
+          <td>Searches merged attributes then resource attributes</td>
+          <td><code>k8s.deployment.name</code></td>
+        </tr>
+        <tr>
+          <td><code>"literal"</code> or <code>'literal'</code></td>
+          <td>Static string — used as a final fallback default</td>
+          <td><code>"production"</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-warning">
+      Expressions are evaluated left to right. Put the most specific / most common attribute first. Put quoted literals last — they always match, so anything after them is unreachable.
+    </div>
+
+    <h3>How attributes flow through the pipeline</h3>
+    <p>The processor merges resource-level and record-level attributes into a single flat map before evaluating expressions. Record attributes override resource attributes on key collisions.</p>
+
+    <div class="cp-flow" style="margin:1.5rem 0;">
+      <div class="cp-node">OTEL SDK<br/><small>sets resource.attributes</small></div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">Collector<br/><small>enriches via processors</small></div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">Rate Limiter<br/><small>merges attrs</small></div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">evalSelector()<br/><small>resolves expression</small></div>
+      <div class="cp-divider">→</div>
+      <div class="cp-node">RequestContext<br/><small>sent to RLAAS</small></div>
+    </div>
+
+    <!-- ─── HOT RELOAD ─────────────────────────────────────────── -->
+    <h2>Hot Reload</h2>
+    <p class="section-intro">Policy files can be updated without restarting the collector.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <h4>File-system watching</h4>
+        <p>Enable <code>watch_policies: true</code> to detect file changes automatically using <code>fsnotify</code>. Changes apply within milliseconds on local file systems.</p>
+        <pre><code>watch_policies: true
+watch_interval: 15s  # polling fallback</code></pre>
+        <p style="font-size:.85rem;color:#64748b;margin-top:.5rem;"><code>watch_interval</code> is a polling fallback for NFS, Docker bind-mounts, and network file systems where fsnotify events may be unreliable.</p>
+      </div>
+      <div class="card">
+        <h4>Manual reload via API</h4>
+        <p>Call <code>POST /reload</code> on the Admin API to force an immediate reload across all engines. Useful for deterministic rollout windows — publish the file, then trigger reload.</p>
+        <pre><code>curl -s -X POST http://localhost:8090/reload \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+        <p style="font-size:.85rem;color:#64748b;margin-top:.5rem;">Inline policies (<code>policies_inline</code>) require a full collector restart — hot reload only applies to <code>policy_file</code>.</p>
+      </div>
+    </div>
+
+    <!-- ─── SAFE ROLLOUT ───────────────────────────────────────── -->
+    <h2>Safe Rollout Strategy</h2>
+    <p class="section-intro">Never enforce a new limit cold. Use shadow mode to observe impact before dropping traffic.</p>
+
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-num">1</div>
+        <div class="timeline-body">
+          <strong>Add policy in shadow mode</strong> — records count toward the limit but are never dropped. Watch <code>ratelimiter_records_shadow_total</code> in Prometheus to see how many would have been denied.
+          <pre style="margin-top:.6rem;"><code>{ "id": "payments-shadow", "enforcement_mode": "shadow_only",
+  "service": "payments", "rate": 80, "burst": 150 }</code></pre>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num">2</div>
+        <div class="timeline-body">
+          <strong>Observe for 24–48 hours</strong> — confirm the shadow counter stays below your acceptable drop rate. Tune <code>rate</code>/<code>burst</code> if the shadow rate is too high.
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num">3</div>
+        <div class="timeline-body">
+          <strong>Switch to enforce</strong> — change <code>enforcement_mode</code> from <code>shadow_only</code> to <code>enforce</code>. The counter moves from <code>shadow</code> to <code>denied</code>.
+          <pre style="margin-top:.6rem;"><code>{ "id": "payments-shadow", "enforcement_mode": "enforce",
+  "service": "payments", "rate": 80, "burst": 150 }</code></pre>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num">4</div>
+        <div class="timeline-body">
+          <strong>Trigger reload</strong> — either wait for <code>watch_policies</code> to pick up the change, or call <code>POST /reload</code> immediately.
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-num">5</div>
+        <div class="timeline-body">
+          <strong>Monitor for 15 minutes</strong> — confirm <code>ratelimiter_records_denied_total</code> is rising at the expected rate and downstream services are healthy.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── QUICK EXAMPLES ─────────────────────────────────────── -->
+    <h2>Common Policy Patterns</h2>
+
+    <h3>Per-service log limit with org scope</h3>
+    <pre><code>[
+  {
+    "id":          "checkout-acme-logs",
+    "org_id":      "acme",
+    "service":     "checkout",
+    "signal_type": "log",
+    "algorithm":   "token_bucket",
+    "rate":        500,
+    "burst":       1000,
+    "action":      "drop"
+  }
+]</code></pre>
+
+    <h3>Global trace limit (all services, all orgs)</h3>
+    <pre><code>[
+  {
+    "id":          "global-trace-limit",
+    "signal_type": "span",
+    "algorithm":   "token_bucket",
+    "rate":        20000,
+    "burst":       40000,
+    "action":      "drop"
+  }
+]</code></pre>
+
+    <h3>Multi-tenant with per-org defaults</h3>
+    <pre><code>[
+  { "id": "org-free-tier",  "org_id": "free",  "rate": 1000,  "burst": 2000,  "action": "drop" },
+  { "id": "org-pro-tier",   "org_id": "pro",   "rate": 10000, "burst": 20000, "action": "drop" },
+  { "id": "org-enterprise", "org_id": "ent",   "rate": 100000,"burst": 150000,"action": "drop" },
+  { "id": "global-default", "rate": 500, "burst": 1000, "action": "drop" }
+]</code></pre>
+
+    <h3>Exception policy (allow-list)</h3>
+    <pre><code>[
+  {
+    "id":      "internal-monitoring-exempt",
+    "service": "otel-collector-self",
+    "action":  "allow",
+    "rate":    999999
+  }
+]</code></pre>
+
+    <div class="callout">
+      Use <a href="admin-api.html"><code>GET /config/policies</code></a> to confirm the exact policy payload the engine is running. The response includes SHA-256 checksum and file modification timestamp so you can verify a reload applied correctly.
+    </div>
+
   </section>
 
   <footer class="footer">
@@ -78,6 +415,8 @@
         <li><a href="index.html">Overview</a></li>
         <li><a href="getting-started.html">Getting Started</a></li>
         <li><a href="configuration.html">Configuration</a></li>
+        <li><a href="examples.html">Examples</a></li>
+        <li><a href="admin-api.html">Admin API</a></li>
         <li><a href="monitoring.html">Monitoring</a></li>
       </ul>
       <span>OTEL Rate Limiter Docs · Policies</span>

@@ -12,11 +12,24 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 </head>
 <body>
-  <nav class="nav"><div class="nav-inner"></div></nav>
+  <nav class="nav"><div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
+    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <ul class="nav-links">
+      <li><a href="index.html">Overview</a></li>
+      <li><a href="getting-started.html">Getting Started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="policies.html">Policies</a></li>
+      <li><a href="behavior-diagrams.html">Diagrams</a></li>
+      <li><a href="admin-api.html" class="active">Admin API</a></li>
+      <li><a href="monitoring.html">Monitoring</a></li>
+      <li><a href="examples.html" class="nav-cta">Examples</a></li>
+    </ul>
+  </div></nav>
 
   <header class="hero" style="padding:4rem 2rem 3.4rem;">
     <h1>Admin API</h1>
-    <p class="subtitle">Five HTTP endpoints that give you runtime insight and live control over the rate limiter — without touching the collector process or restarting anything.</p>
+    <p class="subtitle">Seven HTTP endpoints that give you runtime insight and live control over the rate limiter — without touching the collector process or restarting anything.</p>
   </header>
 
   <section class="content">
@@ -25,10 +38,14 @@
     <pre><code>processors:
   ratelimiter:
     policy_file: /etc/otelcol/policies.json
-    admin_addr: ":8090"   # listens on all interfaces, port 8090</code></pre>
+    admin_addr: ":8090"
+    admin_auth_token: "${env:OTEL_ADMIN_TOKEN}"
+    admin_cors_allowed_origins: ["https://rlaas-io.github.io"]
+    admin_tls_cert_file: /etc/otel/tls/admin.crt
+    admin_tls_key_file: /etc/otel/tls/admin.key</code></pre>
 
     <div class="callout callout-warning">
-      <strong>Security:</strong> Bind to loopback (<code>127.0.0.1:8090</code>) in production, or place the admin port behind an authenticated reverse proxy. The API has no built-in authentication.
+      <strong>Security:</strong> In production, enable <code>admin_auth_token</code> and TLS. For strict environments, set <code>admin_tls_client_ca_file</code> to require mTLS client certificates.
     </div>
 
     <h2>Endpoints</h2>
@@ -51,7 +68,12 @@
           <tr>
             <td><span class="endpoint-method method-get">GET</span></td>
             <td class="endpoint-path">/config</td>
-            <td>Sanitized view of the current running configuration. Useful for verifying a hot reload applied correctly.</td>
+            <td>Sanitized view of all 23 active configuration fields — including org_id, tenant_id, service_expr, and all expression fields. Secrets are never exposed.</td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method method-get">GET</span></td>
+            <td class="endpoint-path">/config/policies</td>
+            <td>Current active policy payload plus metadata such as source, count, checksum, and file modification timestamp.</td>
           </tr>
           <tr>
             <td><span class="endpoint-method method-post">POST</span></td>
@@ -63,11 +85,47 @@
             <td class="endpoint-path">/metrics</td>
             <td>Prometheus text format metrics — the same counters as <code>/stats</code> but in <code>TYPE</code>/<code>HELP</code> Prometheus format.</td>
           </tr>
+          <tr>
+            <td><span class="endpoint-method method-get">GET</span></td>
+            <td class="endpoint-path">/ui/</td>
+            <td>Interactive browser-based Admin Console with 5 tabs: Overview, Live Stats, Configuration, Policies, Actions. Always public — no token required to load the page.</td>
+          </tr>
         </tbody>
       </table>
     </div>
 
+    <h2>What <code>/config</code> Returns</h2>
+    <p>Every configuration field is returned dynamically from the live running processor. This includes all context-extraction fields:</p>
+    <div class="grid-2">
+      <div class="card">
+        <h4>Context defaults</h4>
+        <p>Static values injected into every RLAAS request when the telemetry record does not supply one.</p>
+        <ul style="font-size:.875rem;line-height:1.9;padding-left:1.1rem;color:var(--text-secondary);">
+          <li><code>org_id</code></li>
+          <li><code>tenant_id</code></li>
+          <li><code>application</code></li>
+          <li><code>environment</code></li>
+          <li><code>key_prefix</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Extraction expressions</h4>
+        <p>Dynamic lookup expressions that extract context from telemetry attributes at runtime.</p>
+        <ul style="font-size:.875rem;line-height:1.9;padding-left:1.1rem;color:var(--text-secondary);">
+          <li><code>service_expr</code></li>
+          <li><code>org_id_expr</code></li>
+          <li><code>tenant_id_expr</code></li>
+          <li><code>application_expr</code></li>
+          <li><code>environment_expr</code></li>
+        </ul>
+      </div>
+    </div>
+
     <h2>Usage Examples</h2>
+
+    <h4>Open Admin Console UI</h4>
+    <pre><code># Open in browser — no curl needed
+http://localhost:8090/ui/</code></pre>
 
     <h4>Check processor health</h4>
     <pre><code>curl -s http://localhost:8090/health</code></pre>
@@ -75,14 +133,45 @@
     <h4>Inspect live counters</h4>
     <pre><code>curl -s http://localhost:8090/stats | jq .</code></pre>
 
-    <h4>See active policy config</h4>
+    <h4>See all active config (including org/service expressions)</h4>
     <pre><code>curl -s http://localhost:8090/config | jq .</code></pre>
 
+    <h4>See active policy payload</h4>
+    <pre><code>curl -s http://localhost:8090/config/policies | jq .</code></pre>
+
     <h4>Force a policy reload</h4>
-    <pre><code>curl -s -X POST http://localhost:8090/reload | jq .</code></pre>
+    <pre><code>curl -s -X POST http://localhost:8090/reload \
+  -H "Authorization: Bearer $TOKEN" | jq .</code></pre>
 
     <h4>Scrape Prometheus metrics</h4>
     <pre><code>curl -s http://localhost:8090/metrics</code></pre>
+
+    <h3>Sample <code>/config</code> response</h3>
+    <pre><code>{
+  "policy_file":       "/etc/otelcol/policies.json",
+  "policies_inline":   false,
+  "fail_open":         true,
+  "cache_ttl":         "30s",
+  "watch_policies":    true,
+  "watch_interval":    "15s",
+  "key_prefix":        "otel",
+  "org_id":            "acme-corp",
+  "tenant_id":         "",
+  "application":       "storefront",
+  "environment":       "production",
+  "service_expr":      "resource.attributes.service.name || attributes.service",
+  "org_id_expr":       "resource.attributes.org.id || attributes.org_id",
+  "tenant_id_expr":    "attributes.tenant.id || attributes.tenant_id",
+  "application_expr":  "",
+  "environment_expr":  "",
+  "max_batch_size":    0,
+  "admin_addr":        ":8090",
+  "admin_auth_enabled":  true,
+  "admin_token_header":  "Authorization",
+  "admin_tls_enabled":   false,
+  "admin_tls_client_ca": false,
+  "admin_cors_allowed_origins": []
+}</code></pre>
 
     <h3>Sample <code>/reload</code> response</h3>
     <pre><code>{
@@ -98,7 +187,8 @@
     "dropped":    22250,
     "denied":     22000,
     "shadow":         0,
-    "errors":         0
+    "errors":         0,
+    "reloads":        3
   },
   "traces": {
     "received":   41020,
@@ -106,27 +196,61 @@
     "dropped":        0,
     "denied":         0,
     "shadow":      3800,
-    "errors":         0
+    "errors":         0,
+    "reloads":        3
   }
 }</code></pre>
+
+    <h2>Admin Console UI</h2>
+    <p>Open <code>http://&lt;admin_addr&gt;/ui/</code> in a browser to get a full read-only admin dashboard — no extra setup required. The page is served directly by the collector process and auto-detects the API endpoint from <code>window.location.origin</code>.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h4>Overview tab</h4>
+        <p>Status badge, uptime counter, total received / dropped counters, drop rate KPI, and per-signal breakdown cards with progress bars. Refreshes every 10 seconds automatically.</p>
+      </div>
+      <div class="card">
+        <h4>Live Stats tab</h4>
+        <p>Full table with all 7 counters per signal (received, allowed, denied, shadow, errors, reloads, drop%). Drop percentage is color-coded: green &lt; 5%, amber 5–20%, red &gt; 20%.</p>
+      </div>
+      <div class="card">
+        <h4>Configuration tab</h4>
+        <p>All 23 config fields in grouped sections — Policies, Context Defaults (org_id, tenant_id…), Expressions (service_expr, org_id_expr…), Behavior, Admin API. Boolean values shown as pills.</p>
+      </div>
+      <div class="card">
+        <h4>Policies tab</h4>
+        <p>Active policy payload with metadata: source (file or inline), file path, policy count, SHA-256 checksum, last-modified timestamp, and dark-mode syntax-highlighted JSON with a Copy button.</p>
+      </div>
+      <div class="card">
+        <h4>Actions tab</h4>
+        <p>One-click <code>POST /reload</code> button with loading state. API explorer for all 6 endpoints with inline response display and auto-generated <code>curl</code> commands you can copy to clipboard.</p>
+      </div>
+      <div class="card">
+        <h4>Auth &amp; token</h4>
+        <p>Enter your Bearer token in the sidebar — stored in <code>sessionStorage</code> for the browser tab only, sent automatically with every API call, cleared when the tab closes.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      The <code>/ui/</code> endpoint bypasses token auth intentionally — the HTML page contains no secrets and the user enters their token interactively inside it. All API calls made from the UI still require the token.
+    </div>
 
     <h2>Operational Quick Checks</h2>
     <div class="grid-2">
       <div class="card">
         <h4>During an incident</h4>
-        <p>Use <code>/stats</code> to see if drop rates are abnormally high, and <code>/config</code> to confirm the policy that's active — no Prometheus lag.</p>
+        <p>Use <code>/stats</code> to see if drop rates are abnormally high, and <code>/config</code> to confirm which org_id / expressions are active — no Prometheus lag.</p>
       </div>
       <div class="card">
         <h4>After a policy change</h4>
-        <p>Call <code>POST /reload</code> then immediately check <code>/config</code> to verify the new policy loaded successfully before checking metrics.</p>
+        <p>Call <code>POST /reload</code> then immediately check <code>/config/policies</code> SHA-256 checksum to verify the new policy loaded successfully.</p>
       </div>
       <div class="card">
         <h4>Kubernetes readiness probe</h4>
-        <p>Point your <code>readinessProbe.httpGet</code> at <code>/health</code> on port 8090 — returns non-200 if the processor is not ready to serve traffic.</p>
+        <p>Point your <code>readinessProbe.httpGet</code> at <code>/health</code> on port 8090 — returns non-200 if the processor is not ready.</p>
       </div>
       <div class="card">
-        <h4>No Prometheus? No problem</h4>
-        <p><code>GET /stats</code> gives cumulative totals instantly. Useful for shell scripts, CI checks, and on-call runbooks.</p>
+        <h4>Verify expression config</h4>
+        <p>Use the Admin UI Config tab to confirm <code>service_expr</code> and <code>org_id_expr</code> values are correct after a collector restart or config update.</p>
       </div>
     </div>
 
@@ -139,8 +263,9 @@
     <div class="footer-inner">
       <ul class="footer-links">
         <li><a href="index.html">Overview</a></li>
-        <li><a href="monitoring.html">Monitoring</a></li>
+        <li><a href="getting-started.html">Getting Started</a></li>
         <li><a href="configuration.html">Configuration</a></li>
+        <li><a href="monitoring.html">Monitoring</a></li>
         <li><a href="examples.html">Examples</a></li>
       </ul>
       <span>OTEL Rate Limiter Docs · Admin API</span>

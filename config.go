@@ -83,6 +83,34 @@ type Config struct {
 	// Environment is the deployment environment (e.g. "production", "staging").
 	Environment string `mapstructure:"environment"`
 
+	// ServiceExpr extracts service from telemetry attributes using a fallback
+	// expression. Use "||" to try multiple candidates.
+	//
+	// Supported tokens:
+	//   resource.attributes.<key>
+	//   attributes.<key>
+	//   <key> (resolved from merged attributes)
+	//
+	// Example:
+	//   service_expr: "resource.attributes.service.name || attributes.service || k8s.deployment.name"
+	ServiceExpr string `mapstructure:"service_expr"`
+
+	// OrgIDExpr extracts org ID from telemetry attributes before falling back to
+	// org_id default.
+	OrgIDExpr string `mapstructure:"org_id_expr"`
+
+	// TenantIDExpr extracts tenant ID from telemetry attributes before falling
+	// back to tenant_id default.
+	TenantIDExpr string `mapstructure:"tenant_id_expr"`
+
+	// ApplicationExpr extracts application from telemetry attributes before
+	// falling back to application default.
+	ApplicationExpr string `mapstructure:"application_expr"`
+
+	// EnvironmentExpr extracts environment from telemetry attributes before
+	// falling back to environment default.
+	EnvironmentExpr string `mapstructure:"environment_expr"`
+
 	// MaxBatchSize caps how many records are evaluated per batch invocation.
 	// Records beyond this limit are dropped before reaching RLAAS (reason:
 	// "batch_size_exceeded"). Use this as a safety valve against burst floods.
@@ -96,11 +124,40 @@ type Config struct {
 	//   GET  /health  — liveness probe
 	//   GET  /stats   — per-signal allowed/denied/shadow/error counters (JSON)
 	//   GET  /config  — active configuration (sanitised, no secrets)
+	//   GET  /config/policies — active policy payload + metadata
 	//   POST /reload  — force immediate policy reload on all engines
 	//   GET  /metrics — Prometheus/OpenMetrics text format
 	//
+	// Security can be enabled with admin_auth_token and admin_tls_* fields.
+	//
 	// Leave empty to disable (default).
 	AdminAddr string `mapstructure:"admin_addr"`
+
+	// AdminAuthToken requires callers to provide a token for all admin endpoints.
+	// If empty, admin endpoints are unauthenticated.
+	//
+	// For Authorization header, accepted values are either:
+	//   Authorization: Bearer <token>
+	//   Authorization: <token>
+	AdminAuthToken string `mapstructure:"admin_auth_token"`
+
+	// AdminTokenHeader is the HTTP header used for admin token auth.
+	// Default: "Authorization".
+	AdminTokenHeader string `mapstructure:"admin_token_header"`
+
+	// AdminCORSAllowedOrigins lists allowed Origins for browser access to admin
+	// endpoints. Example: ["https://rlaas-io.github.io"].
+	// Use ["*"] to allow any origin.
+	AdminCORSAllowedOrigins []string `mapstructure:"admin_cors_allowed_origins"`
+
+	// AdminTLSCertFile/AdminTLSKeyFile enable HTTPS for the admin server.
+	// Both must be provided together.
+	AdminTLSCertFile string `mapstructure:"admin_tls_cert_file"`
+	AdminTLSKeyFile  string `mapstructure:"admin_tls_key_file"`
+
+	// AdminTLSClientCAFile enables mTLS when set; clients must present a cert
+	// signed by this CA.
+	AdminTLSClientCAFile string `mapstructure:"admin_tls_client_ca_file"`
 }
 
 // Validate checks all configuration fields for consistency errors.
@@ -119,6 +176,9 @@ func (cfg *Config) Validate() error {
 	}
 	if cfg.MaxBatchSize < 0 {
 		return errors.New("max_batch_size must not be negative")
+	}
+	if (cfg.AdminTLSCertFile == "") != (cfg.AdminTLSKeyFile == "") {
+		return errors.New("admin_tls_cert_file and admin_tls_key_file must be set together")
 	}
 	return nil
 }
