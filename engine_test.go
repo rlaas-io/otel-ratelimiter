@@ -211,3 +211,30 @@ func TestEngine_InlinePoliciesTempFileLifecycle(t *testing.T) {
 	_, err = os.Stat(eng.tempFile)
 	assert.True(t, os.IsNotExist(err), "temp file should be removed on close")
 }
+
+func TestEngine_EvaluateWithDefaults(t *testing.T) {
+	policyFile := createTempPolicyFile(t, []model.Policy{
+		tokenBucketPolicy("p-defaults", "defaults", "log", 10, 10, model.ActionDrop),
+	})
+
+	eng, err := newEngine(&Config{
+		PolicyFile:  policyFile,
+		FailOpen:    true,
+		OrgID:       "default-org",
+		TenantID:    "default-tenant",
+		Application: "default-app",
+		Environment: "default-env",
+	}, zaptest.NewLogger(t))
+	require.NoError(t, err)
+
+	// Create request with empty fields - should use defaults
+	req := model.RequestContext{
+		Service:    "test-service",
+		SignalType: "log",
+		Quantity:   0, // should default to 1
+	}
+
+	dec, err := eng.evaluate(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, dec.Allowed)
+}
