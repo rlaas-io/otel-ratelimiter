@@ -50,7 +50,7 @@ func TestConfig_Validate_Invalid(t *testing.T) {
 		{
 			name:    "missing policy file",
 			cfg:     Config{},
-			wantErr: "policy_file is required",
+			wantErr: "policy_file or policies_inline is required",
 		},
 		{
 			name: "negative cache TTL",
@@ -59,6 +59,30 @@ func TestConfig_Validate_Invalid(t *testing.T) {
 				CacheTTL:   -1,
 			},
 			wantErr: "cache_ttl must not be negative",
+		},
+		{
+			name: "mutually exclusive policy fields",
+			cfg: Config{
+				PolicyFile:     "/path/to/policies.json",
+				PoliciesInline: "[]",
+			},
+			wantErr: "policy_file and policies_inline are mutually exclusive",
+		},
+		{
+			name: "negative watch interval",
+			cfg: Config{
+				PolicyFile:    "/path/to/policies.json",
+				WatchInterval: -1,
+			},
+			wantErr: "watch_interval must not be negative",
+		},
+		{
+			name: "negative max batch size",
+			cfg: Config{
+				PolicyFile:   "/path/to/policies.json",
+				MaxBatchSize: -1,
+			},
+			wantErr: "max_batch_size must not be negative",
 		},
 	}
 

@@ -249,7 +249,10 @@ func BenchmarkEngine_Evaluate(b *testing.B) {
 		Environment: "bench",
 	}
 
-	eng := newEngine(cfg, zap.NewNop())
+	eng, err := newEngine(cfg, zap.NewNop())
+	if err != nil {
+		b.Fatalf("newEngine: %v", err)
+	}
 
 	req := model.RequestContext{
 		Service:    "bench-svc",

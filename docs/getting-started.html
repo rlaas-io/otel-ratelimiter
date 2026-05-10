@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting Started - OTEL Rate Limiter</title>
+  <meta name="description" content="Install and configure OTEL rate limiter in minutes." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
+    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <ul class="nav-links">
+      <li><a href="index.html">Overview</a></li>
+      <li><a href="getting-started.html" class="active">Getting Started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="policies.html">Policies</a></li>
+      <li><a href="admin-api.html">Admin API</a></li>
+      <li><a href="monitoring.html">Monitoring</a></li>
+      <li><a href="examples.html" class="nav-cta">Examples</a></li>
+    </ul>
+  </div></nav>
+
+  <header class="hero" style="padding: 4rem 1.2rem 3.4rem;">
+    <h1>Getting Started</h1>
+    <p class="subtitle">From zero to production-safe telemetry throttling in under 10 minutes.</p>
+  </header>
+
+  <section class="content">
+    <h2>1. Add to Collector Build</h2>
+    <pre><code>processors:
+  - gomod: github.com/rlaas-io/otel-ratelimiter v0.1.0</code></pre>
+
+    <h2>2. Create Policy File</h2>
+    <pre><code>[
+  {
+    "id": "logs-default",
+    "name": "Default logs limiter",
+    "signal_type": "log",
+    "algorithm": "token_bucket",
+    "rate": 1000,
+    "burst": 2000,
+    "action": "drop"
+  }
+]</code></pre>
+
+    <h2>3. Configure Processor</h2>
+    <pre><code>processors:
+  ratelimiter:
+    policy_file: /etc/otelcol/policies.json
+    fail_open: true
+    watch_policies: true
+    watch_interval: 15s
+    admin_addr: ":8090"</code></pre>
+
+    <h2>4. Wire Pipelines</h2>
+    <pre><code>service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [ratelimiter]
+      exporters: [otlp]
+    traces:
+      receivers: [otlp]
+      processors: [ratelimiter]
+      exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [ratelimiter]
+      exporters: [otlp]</code></pre>
+
+    <h2>5. Validate Runtime</h2>
+    <pre><code>curl http://localhost:8090/health
+# {"status":"ok","uptime_seconds":12}
+
+curl http://localhost:8090/stats</code></pre>
+
+    <div class="callout">
+      If you are unsure about safe defaults, use <code>fail_open: true</code> and start policies in shadow mode before enforcing drops.
+    </div>
+  </section>
+
+  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Getting Started</span></div></footer>
+  <script src="js/nav.js"></script>
+</body>
+</html>

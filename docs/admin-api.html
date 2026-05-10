@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin API - OTEL Rate Limiter</title>
+  <meta name="description" content="Operational admin API for OTEL rate limiter." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
+    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <ul class="nav-links">
+      <li><a href="index.html">Overview</a></li>
+      <li><a href="getting-started.html">Getting Started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="policies.html">Policies</a></li>
+      <li><a href="admin-api.html" class="active">Admin API</a></li>
+      <li><a href="monitoring.html">Monitoring</a></li>
+      <li><a href="examples.html" class="nav-cta">Examples</a></li>
+    </ul>
+  </div></nav>
+
+  <section class="content">
+    <h1>Admin API</h1>
+    <p class="section-intro">Enable with <code>admin_addr</code> for runtime visibility and operational controls.</p>
+
+    <pre><code>processors:
+  ratelimiter:
+    policy_file: /etc/otelcol/policies.json
+    admin_addr: ":8090"</code></pre>
+
+    <h2>Endpoints</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>GET</td><td><code>/health</code></td><td>Service liveness and uptime</td></tr>
+        <tr><td>GET</td><td><code>/stats</code></td><td>Per-signal counters</td></tr>
+        <tr><td>GET</td><td><code>/config</code></td><td>Current sanitized config</td></tr>
+        <tr><td>POST</td><td><code>/reload</code></td><td>Force policy reload</td></tr>
+        <tr><td>GET</td><td><code>/metrics</code></td><td>Prometheus text metrics</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Examples</h2>
+    <pre><code>curl http://localhost:8090/health
+curl http://localhost:8090/stats
+curl http://localhost:8090/config
+curl -X POST http://localhost:8090/reload
+curl http://localhost:8090/metrics</code></pre>
+
+    <h3>Sample /reload response</h3>
+    <pre><code>{
+  "status": "reloaded",
+  "engines": 3
+}</code></pre>
+
+    <div class="callout">
+      Security recommendation: bind to loopback (<code>127.0.0.1:8090</code>) or expose behind an authenticated reverse proxy.
+    </div>
+  </section>
+
+  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Admin API</span></div></footer>
+  <script src="js/nav.js"></script>
+</body>
+</html>

@@ -2,11 +2,13 @@ package ratelimiterprocessor
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"testing"
 
+	"github.com/rlaas-io/rlaas/pkg/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/rlaas-io/rlaas/pkg/model"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -16,7 +18,8 @@ func TestEngine_Evaluate_Allow(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "web-api",
@@ -37,7 +40,8 @@ func TestEngine_Evaluate_Deny(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "web-api",
@@ -65,7 +69,8 @@ func TestEngine_Evaluate_ShadowMode(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "web-api",
@@ -97,7 +102,8 @@ func TestEngine_Evaluate_DefaultFields(t *testing.T) {
 		Application: "my-app",
 		Environment: "staging",
 	}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	// Request with empty fields — defaults should be filled.
 	req := model.RequestContext{
@@ -117,7 +123,8 @@ func TestEngine_Stats(t *testing.T) {
 	})
 
 	cfg := &Config{PolicyFile: policyFile, FailOpen: true}
-	eng := newEngine(cfg, zaptest.NewLogger(t))
+	eng, err := newEngine(cfg, zaptest.NewLogger(t))
+	require.NoError(t, err)
 
 	req := model.RequestContext{
 		Service:    "web-api",
@@ -130,7 +137,7 @@ func TestEngine_Stats(t *testing.T) {
 		eng.evaluate(context.Background(), req)
 	}
 
-	allowed, denied, _, _ := eng.Stats()
+	allowed, denied, _, _, _ := eng.Stats()
 	assert.Equal(t, int64(2), allowed)
 	assert.Equal(t, int64(3), denied)
 }
@@ -168,4 +175,39 @@ func TestShouldKeep(t *testing.T) {
 			assert.Equal(t, tt.want, shouldKeep(tt.decision))
 		})
 	}
+}
+
+func TestEngine_ReloadIncrementsStats(t *testing.T) {
+	policyFile := createTempPolicyFile(t, []model.Policy{
+		tokenBucketPolicy("p1", "reload", "log", 10, 10, model.ActionDrop),
+	})
+
+	eng, err := newEngine(&Config{PolicyFile: policyFile, FailOpen: true}, zaptest.NewLogger(t))
+	require.NoError(t, err)
+
+	_, _, _, _, reloads := eng.Stats()
+	assert.Equal(t, int64(0), reloads)
+
+	eng.Reload()
+
+	_, _, _, _, reloads = eng.Stats()
+	assert.Equal(t, int64(1), reloads)
+}
+
+func TestEngine_InlinePoliciesTempFileLifecycle(t *testing.T) {
+	policies := []model.Policy{tokenBucketPolicy("p-inline", "inline", "log", 10, 10, model.ActionDrop)}
+	data, err := json.Marshal(policies)
+	require.NoError(t, err)
+
+	eng, err := newEngine(&Config{PoliciesInline: string(data), FailOpen: true}, zaptest.NewLogger(t))
+	require.NoError(t, err)
+	require.NotEmpty(t, eng.tempFile)
+
+	_, err = os.Stat(eng.tempFile)
+	require.NoError(t, err)
+
+	eng.close()
+
+	_, err = os.Stat(eng.tempFile)
+	assert.True(t, os.IsNotExist(err), "temp file should be removed on close")
 }

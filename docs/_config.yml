@@ -1,0 +1,9 @@
+title: OTEL Rate Limiter
+description: HTML documentation site for the OpenTelemetry rate limiter processor powered by RLAAS.
+baseurl: "/otel-ratelimiter"
+url: "https://rlaas-io.github.io"
+
+# Static HTML site (no markdown theme dependency required)
+markdown: kramdown
+exclude:
+  - README.md

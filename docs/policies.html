@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Policies - OTEL Rate Limiter</title>
+  <meta name="description" content="How to write practical RLAAS policies for OTEL rate limiting." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTEL Rate Limiter</a>
+    <button class="nav-toggle" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <ul class="nav-links">
+      <li><a href="index.html">Overview</a></li>
+      <li><a href="getting-started.html">Getting Started</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="policies.html" class="active">Policies</a></li>
+      <li><a href="admin-api.html">Admin API</a></li>
+      <li><a href="monitoring.html">Monitoring</a></li>
+      <li><a href="examples.html" class="nav-cta">Examples</a></li>
+    </ul>
+  </div></nav>
+
+  <section class="content">
+    <h1>Policy Design</h1>
+    <p class="section-intro">The processor relies on RLAAS policy evaluation. Keep policies narrow, observable, and staged with shadow mode.</p>
+
+    <h2>Baseline policy</h2>
+    <pre><code>[
+  {
+    "id": "checkout-logs",
+    "name": "Checkout logs limit",
+    "signal_type": "log",
+    "service": "checkout",
+    "algorithm": "token_bucket",
+    "rate": 500,
+    "burst": 1000,
+    "action": "drop"
+  }
+]</code></pre>
+
+    <h2>Safe rollout policy</h2>
+    <pre><code>[
+  {
+    "id": "payments-shadow",
+    "name": "Observe before enforce",
+    "signal_type": "trace",
+    "service": "payments",
+    "algorithm": "token_bucket",
+    "rate": 80,
+    "burst": 150,
+    "action": "shadow_only"
+  }
+]</code></pre>
+
+    <h2>Practical guidance</h2>
+    <ul>
+      <li>Start with expected steady-state throughput for <code>rate</code>.</li>
+      <li>Set <code>burst</code> between 1.5x and 3x of <code>rate</code> for short spikes.</li>
+      <li>Prefer service-specific policies over global wildcards for critical paths.</li>
+      <li>Use shadow mode first, then switch to enforced drop once validated.</li>
+    </ul>
+
+    <div class="callout">
+      With <code>watch_policies: true</code>, policy updates are applied live. For deterministic rollout windows, use <code>POST /reload</code> after file publish.
+    </div>
+  </section>
+
+  <footer class="footer"><div class="footer-inner"><span>OTEL Rate Limiter Docs</span><span>Policies</span></div></footer>
+  <script src="js/nav.js"></script>
+</body>
+</html>
